@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#f3f1eb" />
+    <meta name="description" content="A local-first cross-platform MP3 player." />
+    <title>Media Player</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">media-player</p>
+          <h1>Play an MP3.</h1>
+        </div>
+        <p class="header-copy">Local playback. Nothing is uploaded.</p>
+      </header>
+
+      <main class="player-surface">
+        <section id="drop-target" class="open-surface" aria-labelledby="open-title">
+          <div class="note-mark" aria-hidden="true">♪</div>
+          <div class="open-copy">
+            <h2 id="open-title">Choose a local track</h2>
+            <p>MP3 only for this first milestone. You can also drop a file here on desktop.</p>
+          </div>
+          <input id="file-input" class="visually-hidden" type="file" accept=".mp3,audio/mpeg,audio/mp3" />
+          <label class="primary-button" for="file-input">Choose MP3</label>
+        </section>
+
+        <p id="error-message" class="error-message" role="alert" hidden></p>
+
+        <section id="empty-state" class="empty-state" aria-live="polite">
+          <span>No track loaded</span>
+          <span>Playback controls will appear after you choose a file.</span>
+        </section>
+
+        <section id="player" class="player" aria-label="MP3 player" hidden>
+          <audio id="audio" preload="metadata"></audio>
+
+          <div class="track-row">
+            <div class="cover-placeholder" aria-hidden="true">♪</div>
+            <div class="track-copy">
+              <strong id="track-name">Track</strong>
+              <span id="track-meta">0 B</span>
+            </div>
+          </div>
+
+          <div class="timeline">
+            <input id="seek" type="range" min="0" max="0" step="0.1" value="0" aria-label="Seek through track" disabled />
+            <div class="time-row" aria-live="off">
+              <span id="current-time">0:00</span>
+              <span id="duration">0:00</span>
+            </div>
+          </div>
+
+          <div class="controls-row">
+            <button id="play-button" class="play-button" type="button" disabled>Play</button>
+            <label class="volume-control" for="volume">
+              <span>Volume</span>
+              <input id="volume" type="range" min="0" max="1" step="0.01" value="1" />
+            </label>
+          </div>
+        </section>
+      </main>
+
+      <footer class="app-footer">Web · Windows · macOS · Linux · Android · iOS</footer>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

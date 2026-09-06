@@ -1,0 +1,23 @@
+{
+  "name": "media-player",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "npm@10.9.2",
+  "scripts": {
+    "dev:web": "node scripts/serve.mjs",
+    "build:web": "node scripts/build-web.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "verify:web": "npm run test && npm run build:web",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build --no-bundle",
+    "tauri:android:init": "tauri android init",
+    "tauri:android:dev": "tauri android dev",
+    "tauri:ios:init": "tauri ios init",
+    "tauri:ios:dev": "tauri ios dev"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.11.4"
+  }
+}
