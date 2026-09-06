@@ -26,6 +26,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22.16.0
+          package-manager-cache: false
       - uses: dtolnay/rust-toolchain@stable
       - name: Install Tauri CLI
         run: npm install --ignore-scripts
@@ -40,6 +41,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22.16.0
+          package-manager-cache: false
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -68,6 +70,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22.16.0
+          package-manager-cache: false
       - uses: dtolnay/rust-toolchain@stable
       - name: Install Tauri CLI
         run: npm install --ignore-scripts
