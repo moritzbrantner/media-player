@@ -21,6 +21,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22.16.0
+          package-manager-cache: false
       - name: Verify and build static player
         run: npm run verify:web
       - name: Configure Pages
