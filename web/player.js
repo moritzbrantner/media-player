@@ -1,9 +1,16 @@
 export const MP3_ACCEPT = ".mp3,audio/mpeg,audio/mp3";
+export const DEFAULT_PLAYBACK_RATE = 1;
+export const DEFAULT_VOLUME = 1;
 
 export function isMp3File(file) {
   const name = typeof file?.name === "string" ? file.name.toLowerCase() : "";
   const type = typeof file?.type === "string" ? file.type.toLowerCase() : "";
   return name.endsWith(".mp3") || type === "audio/mpeg" || type === "audio/mp3";
+}
+
+export function clamp(value, minimum, maximum) {
+  if (!Number.isFinite(value)) return minimum;
+  return Math.min(maximum, Math.max(minimum, value));
 }
 
 export function formatTime(value) {
@@ -30,4 +37,13 @@ export function formatBytes(bytes) {
   const precision = unitIndex === 0 || value >= 10 ? 0 : 1;
 
   return `${value.toFixed(precision)} ${units[unitIndex]}`;
+}
+
+export function displayTitle(item) {
+  return item?.metadata?.title?.trim() || item?.file?.name || "Unknown track";
+}
+
+export function displaySubtitle(item) {
+  const parts = [item?.metadata?.artist, item?.metadata?.album].filter(Boolean);
+  return parts.join(" · ") || formatBytes(item?.file?.size ?? 0);
 }

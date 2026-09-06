@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { formatBytes, formatTime, isMp3File, MP3_ACCEPT } from "../web/player.js";
+import {
+  clamp,
+  displaySubtitle,
+  displayTitle,
+  formatBytes,
+  formatTime,
+  isMp3File,
+  MP3_ACCEPT,
+} from "../web/player.js";
 
 test("MP3 accept list covers the extension and common MIME types", () => {
   assert.match(MP3_ACCEPT, /\.mp3/);
@@ -25,4 +33,22 @@ test("byte formatting stays compact", () => {
   assert.equal(formatBytes(0), "0 B");
   assert.equal(formatBytes(1_024), "1.0 KB");
   assert.equal(formatBytes(12 * 1_024 * 1_024), "12 MB");
+});
+
+test("clamp handles invalid and out-of-range values", () => {
+  assert.equal(clamp(Number.NaN, 0, 1), 0);
+  assert.equal(clamp(-1, 0, 1), 0);
+  assert.equal(clamp(1.5, 0, 1), 1);
+  assert.equal(clamp(0.4, 0, 1), 0.4);
+});
+
+test("display helpers prefer metadata and fall back to the file", () => {
+  const file = { name: "file.mp3", size: 1_024 };
+  assert.equal(displayTitle({ file, metadata: { title: "Song" } }), "Song");
+  assert.equal(displayTitle({ file, metadata: {} }), "file.mp3");
+  assert.equal(
+    displaySubtitle({ file, metadata: { artist: "Artist", album: "Album" } }),
+    "Artist · Album",
+  );
+  assert.equal(displaySubtitle({ file, metadata: {} }), "1.0 KB");
 });

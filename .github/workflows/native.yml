@@ -1,0 +1,80 @@
+name: Native
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  desktop:
+    name: Desktop / ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-22.04, macos-latest, windows-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22.16.0
+          package-manager-cache: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Tauri CLI
+        run: npm install --ignore-scripts
+      - name: Build desktop host
+        run: npm run tauri:build
+
+  android:
+    name: Android / aarch64 debug APK
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22.16.0
+          package-manager-cache: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Tauri CLI
+        run: npm install --ignore-scripts
+      - name: Resolve Android NDK
+        shell: bash
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          NDK_DIR="$(find "$SDK_ROOT/ndk" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          test -n "$NDK_DIR"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "NDK_HOME=$NDK_DIR" >> "$GITHUB_ENV"
+      - name: Initialize Android project
+        run: npm run tauri:android:init -- --ci
+      - name: Build Android app
+        run: npm run tauri:android:build -- --debug --target aarch64 --apk
+
+  ios:
+    name: iOS / Apple Silicon simulator
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22.16.0
+          package-manager-cache: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Tauri CLI
+        run: npm install --ignore-scripts
+      - name: Initialize iOS project
+        run: npm run tauri:ios:init -- --ci
+      - name: Build iOS simulator app
+        run: npm run tauri:ios:build -- --debug --target aarch64-sim --no-sign
