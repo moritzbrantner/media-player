@@ -13,55 +13,107 @@
       <header class="app-header">
         <div>
           <p class="eyebrow">media-player</p>
-          <h1>Play an MP3.</h1>
+          <h1>Your music, locally.</h1>
         </div>
-        <p class="header-copy">Local playback. Nothing is uploaded.</p>
+        <p class="header-copy">Build a queue and play MP3s without uploading them.</p>
       </header>
 
       <main class="player-surface">
         <section id="drop-target" class="open-surface" aria-labelledby="open-title">
           <div class="note-mark" aria-hidden="true">♪</div>
           <div class="open-copy">
-            <h2 id="open-title">Choose a local track</h2>
-            <p>MP3 only for this first milestone. You can also drop a file here on desktop.</p>
+            <h2 id="open-title">Add local tracks</h2>
+            <p>Choose one or more MP3 files. Desktop users can also drop files here.</p>
           </div>
-          <input id="file-input" class="visually-hidden" type="file" accept=".mp3,audio/mpeg,audio/mp3" />
-          <label class="primary-button" for="file-input">Choose MP3</label>
+          <input
+            id="file-input"
+            class="visually-hidden"
+            type="file"
+            accept=".mp3,audio/mpeg,audio/mp3"
+            multiple
+          />
+          <label class="primary-button" for="file-input">Add MP3s</label>
         </section>
 
         <p id="error-message" class="error-message" role="alert" hidden></p>
 
         <section id="empty-state" class="empty-state" aria-live="polite">
-          <span>No track loaded</span>
-          <span>Playback controls will appear after you choose a file.</span>
+          <span>No tracks loaded</span>
+          <span>Your local queue will appear after you add MP3 files.</span>
         </section>
 
         <section id="player" class="player" aria-label="MP3 player" hidden>
           <audio id="audio" preload="metadata"></audio>
 
-          <div class="track-row">
-            <div class="cover-placeholder" aria-hidden="true">♪</div>
+          <div class="now-playing">
+            <div class="cover-shell">
+              <img id="cover-art" class="cover-art" alt="" hidden />
+              <div id="cover-placeholder" class="cover-placeholder" aria-hidden="true">♪</div>
+            </div>
             <div class="track-copy">
-              <strong id="track-name">Track</strong>
-              <span id="track-meta">0 B</span>
+              <p class="eyebrow">Now playing</p>
+              <strong id="track-title">Track</strong>
+              <span id="track-artist"></span>
+              <span id="track-album"></span>
+              <span id="track-file"></span>
             </div>
           </div>
 
           <div class="timeline">
-            <input id="seek" type="range" min="0" max="0" step="0.1" value="0" aria-label="Seek through track" disabled />
+            <input
+              id="seek"
+              type="range"
+              min="0"
+              max="0"
+              step="0.1"
+              value="0"
+              aria-label="Seek through track"
+              disabled
+            />
             <div class="time-row" aria-live="off">
               <span id="current-time">0:00</span>
               <span id="duration">0:00</span>
             </div>
           </div>
 
-          <div class="controls-row">
+          <div class="transport-row" aria-label="Playback controls">
+            <button id="previous-button" class="transport-button" type="button" aria-label="Previous track">Previous</button>
+            <button id="back-button" class="transport-button compact" type="button" aria-label="Seek backward 10 seconds">−10s</button>
             <button id="play-button" class="play-button" type="button" disabled>Play</button>
+            <button id="forward-button" class="transport-button compact" type="button" aria-label="Seek forward 10 seconds">+10s</button>
+            <button id="next-button" class="transport-button" type="button" aria-label="Next track">Next</button>
+          </div>
+
+          <div class="playback-settings">
             <label class="volume-control" for="volume">
               <span>Volume</span>
               <input id="volume" type="range" min="0" max="1" step="0.01" value="1" />
             </label>
+            <label class="speed-control" for="playback-rate">
+              <span>Speed</span>
+              <select id="playback-rate">
+                <option value="0.5">0.5×</option>
+                <option value="0.75">0.75×</option>
+                <option value="1" selected>1×</option>
+                <option value="1.25">1.25×</option>
+                <option value="1.5">1.5×</option>
+                <option value="2">2×</option>
+              </select>
+            </label>
           </div>
+
+          <p class="keyboard-hint">Space play/pause · ←/→ seek 10 seconds</p>
+        </section>
+
+        <section id="queue-section" class="queue-section" aria-labelledby="queue-title" hidden>
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Up next</p>
+              <h2 id="queue-title">Queue</h2>
+            </div>
+            <button id="clear-queue-button" class="text-button" type="button">Clear queue</button>
+          </div>
+          <ol id="queue-list" class="queue-list"></ol>
         </section>
       </main>
 

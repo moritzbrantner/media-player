@@ -13,17 +13,17 @@ jobs:
     name: Web
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 22.16.0
       - run: npm run verify:web
 
   rust:
     name: Rust
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install Tauri Linux dependencies
         run: |
           sudo apt-get update
