@@ -15,13 +15,14 @@ The current product slice is a usable local audio player rather than only a play
 - Persist volume and playback speed locally.
 - Integrate with browser/WebView media-session controls where supported.
 - Run as a static web app and as a Tauri application on Windows, macOS, Linux, Android, and iOS.
+- Run a local real-playback acceptance flow for browser, desktop, Android, and iOS targets.
 - Deploy the static player to GitHub Pages from `main`.
 
 Hosted web player: <https://moritzbrantner.github.io/media-player/>
 
 ## Architecture
 
-- `web/`: portable player, queue, bounded ID3 parser, format admission, and browser/WebView integration.
+- `web/`: portable player, queue, bounded ID3 parser, format admission, playback acceptance, and browser/WebView integration.
 - `src-tauri/`: minimal Rust/Tauri host and the extension point for capabilities that genuinely need native integration.
 - `.github/workflows/verify.yml`: fast web and Rust checks.
 - `.github/workflows/native.yml`: Windows, macOS, Linux, Android, and iOS build validation.
@@ -32,6 +33,21 @@ Hosted web player: <https://moritzbrantner.github.io/media-player/>
 The Web Media API is authoritative for basic playback and codec/container support. The queue owns playback order. File-format admission is intentionally a small browser-local registry based on file extensions and MIME types; it does not claim that every admitted codec decodes on every WebView. ID3 parsing stays MP3-specific because the browser already owns the selected `File` objects and no native bridge is needed for this bounded metadata work.
 
 For heavier decoding, waveform generation, signal analysis, richer cross-format metadata extraction, or capabilities that need a native backend, reuse the existing `audio-analysis` Rust surfaces rather than creating a second audio stack in this repository.
+
+## Playback acceptance
+
+Use `acceptance.html?target=...` with one known-good MP3 on each target. The target is explicit in the URL so evidence is not confused between runtimes:
+
+- `?target=browser`
+- `?target=desktop`
+- `?target=android`
+- `?target=ios`
+
+The acceptance runner checks that metadata exposes a finite duration, playback starts from a user action, current time advances, seeking reaches the requested position, and pause works. It then requires a human to confirm audible output. Files are loaded with a local blob URL and are never uploaded.
+
+A successful CI build is build evidence, not audible-playback evidence. Do not mark a target accepted until the mechanical checks pass on that target and audible output is explicitly confirmed there.
+
+On the hosted build, open <https://moritzbrantner.github.io/media-player/acceptance.html?target=browser>. In a packaged desktop or mobile build, use the `Playback acceptance` link in the player footer and select the matching target.
 
 ## Development
 
@@ -90,4 +106,4 @@ cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
-Pull requests additionally compile the Tauri host on Windows, macOS, and Linux and build Android/iOS debug targets.
+Pull requests additionally compile the Tauri host on Windows, macOS, and Linux and build Android/iOS debug targets. Those jobs prove packaging/build compatibility; real playback remains a separate acceptance gate.
