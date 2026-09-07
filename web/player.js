@@ -57,13 +57,15 @@ function fileExtension(file) {
 }
 
 export function audioFormatForFile(file) {
+  const mimeType = normalizedMimeType(file);
+  if (mimeType.startsWith("video/")) return null;
+
   const extension = fileExtension(file);
   if (extension) {
     const extensionMatch = AUDIO_FORMATS.find((format) => format.extensions.includes(extension));
     if (extensionMatch) return extensionMatch;
   }
 
-  const mimeType = normalizedMimeType(file);
   if (!mimeType) return null;
   return AUDIO_FORMATS.find((format) => format.mimeTypes.includes(mimeType)) ?? null;
 }
