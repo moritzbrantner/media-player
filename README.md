@@ -15,6 +15,7 @@ The current product slice is a usable local audio player rather than only a play
 - Persist volume and playback speed locally.
 - Integrate with browser/WebView media-session controls where supported.
 - Run as a static web app and as a Tauri application on Windows, macOS, Linux, Android, and iOS.
+- Use a touch-first mobile layout with safe-area padding and coarse-pointer targets.
 - Run a local real-playback acceptance flow for browser, desktop, Android, and iOS targets.
 - Deploy the static player to GitHub Pages from `main`.
 
@@ -27,12 +28,28 @@ Hosted web player: <https://moritzbrantner.github.io/media-player/>
 - `.github/workflows/verify.yml`: fast web and Rust checks.
 - `.github/workflows/native.yml`: Windows, macOS, Linux, Android, and iOS build validation.
 - `.github/workflows/pages.yml`: static build, deployment, and hosted smoke test.
+- `docs/mobile-readiness.md`: automated and manual gates for treating the Android/iOS applications as ready.
 
 ### Ownership boundary
 
 The Web Media API is authoritative for basic playback and codec/container support. The queue owns playback order. File-format admission is intentionally a small browser-local registry based on file extensions and MIME types; it does not claim that every admitted codec decodes on every WebView. ID3 parsing stays MP3-specific because the browser already owns the selected `File` objects and no native bridge is needed for this bounded metadata work.
 
 For heavier decoding, waveform generation, signal analysis, richer cross-format metadata extraction, or capabilities that need a native backend, reuse the existing `audio-analysis` Rust surfaces rather than creating a second audio stack in this repository.
+
+## Mobile / Tauri readiness
+
+The Android and iOS apps use the same portable player as the hosted web build, with `web/mobile.css` adding mobile-specific layout rather than forking the application UI. The mobile transport keeps Previous, Play, and Next in the primary row and moves ±10-second seeking to a secondary row. Coarse-pointer controls use at least 48 CSS-pixel targets, and the existing safe-area insets remain active.
+
+Tauri's mobile baseline is explicit in `src-tauri/tauri.conf.json`: Android currently targets minimum SDK 24 and iOS minimum system version 15.0. Bundling is enabled and uses the checked-in application icons.
+
+Native CI validates:
+
+- Windows, macOS, and Linux Tauri host builds.
+- An Android aarch64 debug APK for installable-device packaging.
+- An Android debug AAB for the Google Play bundle shape.
+- An unsigned Apple Silicon iOS simulator build.
+
+These are build/package gates. App Store / Play signing and real-device audible playback are separate evidence. See `docs/mobile-readiness.md` and issue #4 for those gates.
 
 ## Playback acceptance
 
@@ -76,10 +93,11 @@ npm run tauri:android:init
 npm run tauri:android:dev
 ```
 
-A CI-style debug build can be run with:
+CI validates both Android package shapes:
 
 ```bash
 npm run tauri:android:build -- --debug --target aarch64 --apk
+npm run tauri:android:build -- --debug --aab
 ```
 
 ### iOS
@@ -106,4 +124,4 @@ cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
-Pull requests additionally compile the Tauri host on Windows, macOS, and Linux and build Android/iOS debug targets. Those jobs prove packaging/build compatibility; real playback remains a separate acceptance gate.
+Pull requests additionally compile the Tauri host on Windows, macOS, and Linux, build both Android APK/AAB package shapes, and build the iOS simulator target. Those jobs prove packaging/build compatibility; real playback remains a separate acceptance gate.
