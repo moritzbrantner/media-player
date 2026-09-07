@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#f3f1eb" />
-    <meta name="description" content="A local-first cross-platform MP3 player." />
+    <meta name="description" content="A local-first cross-platform audio player." />
     <title>Media Player</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
@@ -15,7 +15,7 @@
           <p class="eyebrow">media-player</p>
           <h1>Your music, locally.</h1>
         </div>
-        <p class="header-copy">Build a queue and play MP3s without uploading them.</p>
+        <p class="header-copy">Build a queue and play local audio without uploading it.</p>
       </header>
 
       <main class="player-surface">
@@ -23,26 +23,26 @@
           <div class="note-mark" aria-hidden="true">♪</div>
           <div class="open-copy">
             <h2 id="open-title">Add local tracks</h2>
-            <p>Choose one or more MP3 files. Desktop users can also drop files here.</p>
+            <p>Choose MP3, WAV, FLAC, Ogg/Opus, M4A/AAC, or WebM audio files. Desktop users can also drop files here.</p>
           </div>
           <input
             id="file-input"
             class="visually-hidden"
             type="file"
-            accept=".mp3,audio/mpeg,audio/mp3"
+            accept=".mp3,audio/mpeg,audio/mp3,.wav,.wave,audio/wav,audio/wave,audio/x-wav,.flac,audio/flac,audio/x-flac,.ogg,.oga,.opus,audio/ogg,audio/opus,.m4a,.m4b,.aac,audio/mp4,audio/aac,audio/x-m4a,.webm,.weba,audio/webm"
             multiple
           />
-          <label class="primary-button" for="file-input">Add MP3s</label>
+          <label class="primary-button" for="file-input">Add audio</label>
         </section>
 
         <p id="error-message" class="error-message" role="alert" hidden></p>
 
         <section id="empty-state" class="empty-state" aria-live="polite">
           <span>No tracks loaded</span>
-          <span>Your local queue will appear after you add MP3 files.</span>
+          <span>Your local queue will appear after you add audio files.</span>
         </section>
 
-        <section id="player" class="player" aria-label="MP3 player" hidden>
+        <section id="player" class="player" aria-label="Audio player" hidden>
           <audio id="audio" preload="metadata"></audio>
 
           <div class="now-playing">
