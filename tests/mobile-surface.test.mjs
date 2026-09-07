@@ -51,7 +51,7 @@ test("native CI validates Android APK and AAB package shapes", () => {
 });
 
 test("native CI retains confirmed mobile package outputs", () => {
-  assert.match(nativeWorkflow, /actions\/upload-artifact@v4/);
+  assert.match(nativeWorkflow, /actions\/upload-artifact@v7/);
   assert.match(nativeWorkflow, /name: media-player-android-debug-apk/);
   assert.match(
     nativeWorkflow,
