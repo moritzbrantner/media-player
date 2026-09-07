@@ -34,7 +34,7 @@ jobs:
         run: npm run tauri:build
 
   android:
-    name: Android / aarch64 debug APK
+    name: Android / APK + AAB
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v6
@@ -59,8 +59,10 @@ jobs:
           echo "NDK_HOME=$NDK_DIR" >> "$GITHUB_ENV"
       - name: Initialize Android project
         run: npm run tauri:android:init -- --ci
-      - name: Build Android app
+      - name: Build aarch64 debug APK
         run: npm run tauri:android:build -- --debug --target aarch64 --apk
+      - name: Build debug Android App Bundle
+        run: npm run tauri:android:build -- --debug --aab
 
   ios:
     name: iOS / Apple Silicon simulator
