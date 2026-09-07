@@ -2,24 +2,71 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  AUDIO_ACCEPT,
+  audioFormatForFile,
   clamp,
   displaySubtitle,
   displayTitle,
   formatBytes,
   formatTime,
   isMp3File,
-  MP3_ACCEPT,
+  isSupportedAudioFile,
 } from "../web/player.js";
 
-test("MP3 accept list covers the extension and common MIME types", () => {
-  assert.match(MP3_ACCEPT, /\.mp3/);
-  assert.match(MP3_ACCEPT, /audio\/mpeg/);
+test("audio accept list covers the supported format families", () => {
+  for (const token of [
+    ".mp3",
+    ".wav",
+    ".flac",
+    ".ogg",
+    ".opus",
+    ".m4a",
+    ".aac",
+    ".webm",
+    "audio/mpeg",
+    "audio/wav",
+    "audio/flac",
+    "audio/ogg",
+    "audio/mp4",
+    "audio/webm",
+  ]) {
+    assert.match(AUDIO_ACCEPT, new RegExp(token.replace(".", "\\.")));
+  }
 });
 
-test("MP3 detection accepts extension or MIME type", () => {
+test("audio format detection accepts extensions or MIME types", () => {
+  const cases = [
+    ["track.MP3", "", "mp3"],
+    ["track.wav", "", "wav"],
+    ["track.flac", "", "flac"],
+    ["track.opus", "", "ogg"],
+    ["track.m4a", "", "mp4-audio"],
+    ["track.weba", "", "webm-audio"],
+    ["track", "audio/ogg", "ogg"],
+    ["track", "audio/mp4; codecs=mp4a.40.2", "mp4-audio"],
+  ];
+
+  for (const [name, type, expectedId] of cases) {
+    const file = { name, type };
+    assert.equal(isSupportedAudioFile(file), true);
+    assert.equal(audioFormatForFile(file)?.id, expectedId);
+  }
+});
+
+test("audio format detection rejects unrelated and video-only inputs", () => {
+  assert.equal(isSupportedAudioFile({ name: "cover.jpg", type: "image/jpeg" }), false);
+  assert.equal(isSupportedAudioFile({ name: "movie.mp4", type: "video/mp4" }), false);
+  assert.equal(isSupportedAudioFile({ name: "notes.txt", type: "" }), false);
+});
+
+test("MP3 detection stays narrow for ID3 metadata parsing", () => {
   assert.equal(isMp3File({ name: "track.MP3", type: "" }), true);
   assert.equal(isMp3File({ name: "track", type: "audio/mpeg" }), true);
   assert.equal(isMp3File({ name: "track.wav", type: "audio/wav" }), false);
+});
+
+test("file extension takes precedence over a conflicting MIME type", () => {
+  assert.equal(audioFormatForFile({ name: "track.flac", type: "audio/mpeg" })?.id, "flac");
 });
 
 test("time formatting handles tracks shorter and longer than one hour", () => {
