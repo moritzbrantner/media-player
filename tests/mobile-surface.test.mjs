@@ -33,6 +33,17 @@ test("mobile controls retain comfortable touch targets", () => {
   assert.match(mobileStyles, /grid-template-areas:[\s\S]*"previous play next"/);
 });
 
+test("named transport placement is scoped to the narrow-screen grid", () => {
+  const mobileQuery = mobileStyles.indexOf("@media (max-width: 700px)");
+  const previousPlacement = mobileStyles.indexOf("#previous-button");
+  const nextMediaQuery = mobileStyles.indexOf("@media (max-width: 440px)");
+
+  assert.ok(mobileQuery >= 0);
+  assert.ok(previousPlacement > mobileQuery);
+  assert.ok(previousPlacement < nextMediaQuery);
+  assert.doesNotMatch(mobileStyles.slice(0, mobileQuery), /grid-area:/);
+});
+
 test("native CI validates Android APK and AAB package shapes", () => {
   assert.match(nativeWorkflow, /--apk/);
   assert.match(nativeWorkflow, /--aab/);
