@@ -53,7 +53,7 @@ jobs:
     needs: deploy
     runs-on: ubuntu-latest
     steps:
-      - name: Verify hosted player
+      - name: Verify hosted player and acceptance surface
         env:
           PAGE_URL: ${{ needs.deploy.outputs.page_url }}
         run: |
@@ -62,6 +62,12 @@ jobs:
               grep -q 'id="file-input"' page.html
               grep -q 'id="queue-list"' page.html
               grep -q 'id="play-button"' page.html
+
+              ACCEPTANCE_URL="${PAGE_URL%/}/acceptance.html?target=browser"
+              curl --fail --location --silent --show-error "$ACCEPTANCE_URL" -o acceptance.html
+              grep -q 'id="acceptance-file"' acceptance.html
+              grep -q 'id="acceptance-audio"' acceptance.html
+              grep -q 'id="heard-audio"' acceptance.html
               exit 0
             fi
             sleep 5
