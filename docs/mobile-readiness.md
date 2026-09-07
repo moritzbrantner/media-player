@@ -16,7 +16,9 @@ Successful Native workflow runs expose these testing artifacts:
 
 - `media-player-android-debug-apk`: installable Android debug APK from `app-universal-debug.apk`.
 - `media-player-android-debug-aab`: Android debug App Bundle from `app-universal-debug.aab`, useful for validating the Play bundle shape.
-- `media-player-ios-arm64-simulator`: unsigned Apple Silicon iOS Simulator `.app` bundle.
+- `media-player-ios-arm64-simulator`: a tar-gz archive containing the unsigned Apple Silicon iOS Simulator `.app` bundle.
+
+The iOS bundle is archived with `tar` before GitHub artifact upload so executable permissions and case-sensitive bundle contents survive download/extraction. The Android packages are already single package files and are uploaded directly.
 
 These artifacts are deliberately debug/unsigned outputs. Retaining them makes installation and simulator testing reproducible; it does not turn them into store releases.
 
