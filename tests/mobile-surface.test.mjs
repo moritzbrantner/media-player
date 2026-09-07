@@ -62,11 +62,13 @@ test("native CI retains confirmed mobile package outputs", () => {
     nativeWorkflow,
     /src-tauri\/gen\/android\/app\/build\/outputs\/bundle\/universalDebug\/app-universal-debug\.aab/,
   );
-  assert.match(nativeWorkflow, /name: media-player-ios-arm64-simulator/);
+  assert.match(nativeWorkflow, /name: Archive iOS simulator app/);
   assert.match(
     nativeWorkflow,
-    /src-tauri\/gen\/apple\/build\/arm64-sim\/Media Player\.app/,
+    /tar -czf media-player-ios-arm64-simulator\.tar\.gz -C src-tauri\/gen\/apple\/build\/arm64-sim "Media Player\.app"/,
   );
+  assert.match(nativeWorkflow, /name: media-player-ios-arm64-simulator/);
+  assert.match(nativeWorkflow, /path: media-player-ios-arm64-simulator\.tar\.gz/);
   assert.equal((nativeWorkflow.match(/if-no-files-found: error/g) ?? []).length, 3);
 });
 
