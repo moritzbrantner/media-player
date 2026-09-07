@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#f3f1eb" />
+    <meta
+      name="description"
+      content="Local playback acceptance for the Media Player browser and Tauri targets."
+    />
+    <title>Playback Acceptance · Media Player</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./acceptance.css" />
+  </head>
+  <body>
+    <div class="acceptance-shell">
+      <header class="acceptance-header">
+        <div>
+          <p class="eyebrow">media-player / acceptance</p>
+          <h1>Real playback acceptance</h1>
+        </div>
+        <a class="text-link" href="./index.html">Back to player</a>
+      </header>
+
+      <main class="acceptance-main">
+        <section class="acceptance-intro" aria-labelledby="acceptance-title">
+          <p id="acceptance-title">
+            Run one known-good MP3 through the actual browser/WebView media element. The file stays on this
+            device; nothing is uploaded.
+          </p>
+          <p>
+            CI can verify builds and the mechanical contract, but it cannot prove that speakers or headphones
+            produced sound. Final acceptance therefore includes a manual audible-output check.
+          </p>
+        </section>
+
+        <nav class="target-nav" aria-label="Acceptance target">
+          <a data-target="browser" href="./acceptance.html?target=browser">Browser</a>
+          <a data-target="desktop" href="./acceptance.html?target=desktop">Desktop</a>
+          <a data-target="android" href="./acceptance.html?target=android">Android</a>
+          <a data-target="ios" href="./acceptance.html?target=ios">iOS</a>
+        </nav>
+
+        <section class="acceptance-panel" aria-labelledby="target-heading">
+          <div class="acceptance-heading">
+            <div>
+              <p class="eyebrow">Target</p>
+              <h2 id="target-heading"><span id="target-label">Browser / hosted web</span></h2>
+            </div>
+            <button id="reset-acceptance" class="text-button" type="button">Reset</button>
+          </div>
+
+          <label class="file-picker" for="acceptance-file">
+            <span>Known-good MP3</span>
+            <input id="acceptance-file" type="file" accept=".mp3,audio/mpeg,audio/mp3" />
+          </label>
+          <p id="file-summary" class="file-summary">No MP3 selected.</p>
+          <p id="acceptance-error" class="error-message" role="alert" hidden></p>
+
+          <audio id="acceptance-audio" class="acceptance-audio" controls preload="metadata"></audio>
+
+          <div class="acceptance-actions">
+            <button id="run-acceptance" class="primary-button" type="button" disabled>
+              Run playback checks
+            </button>
+            <label class="audible-check" for="heard-audio">
+              <input id="heard-audio" type="checkbox" disabled />
+              <span>I heard the MP3 on this target</span>
+            </label>
+          </div>
+        </section>
+
+        <section class="acceptance-panel" aria-labelledby="checks-heading">
+          <div class="acceptance-heading">
+            <div>
+              <p class="eyebrow">Evidence</p>
+              <h2 id="checks-heading">Acceptance checks</h2>
+            </div>
+          </div>
+
+          <ol class="check-list">
+            <li class="check-row" data-check="metadata" data-status="pending">
+              <div>
+                <strong>Decode metadata</strong>
+                <span class="check-detail">Not checked yet.</span>
+              </div>
+              <span class="check-status">Pending</span>
+            </li>
+            <li class="check-row" data-check="play" data-status="pending">
+              <div>
+                <strong>Start playback</strong>
+                <span class="check-detail">Not checked yet.</span>
+              </div>
+              <span class="check-status">Pending</span>
+            </li>
+            <li class="check-row" data-check="advance" data-status="pending">
+              <div>
+                <strong>Advance current time</strong>
+                <span class="check-detail">Not checked yet.</span>
+              </div>
+              <span class="check-status">Pending</span>
+            </li>
+            <li class="check-row" data-check="seek" data-status="pending">
+              <div>
+                <strong>Seek</strong>
+                <span class="check-detail">Not checked yet.</span>
+              </div>
+              <span class="check-status">Pending</span>
+            </li>
+            <li class="check-row" data-check="pause" data-status="pending">
+              <div>
+                <strong>Pause</strong>
+                <span class="check-detail">Not checked yet.</span>
+              </div>
+              <span class="check-status">Pending</span>
+            </li>
+            <li class="check-row" data-check="audible" data-status="pending">
+              <div>
+                <strong>Audible output</strong>
+                <span class="check-detail">Not checked yet.</span>
+              </div>
+              <span class="check-status">Pending</span>
+            </li>
+          </ol>
+
+          <p id="acceptance-summary" class="acceptance-summary" data-status="pending" aria-live="polite">
+            Acceptance is incomplete. Run the checks and confirm that audio was audible.
+          </p>
+        </section>
+      </main>
+
+      <footer class="app-footer">Local-only playback evidence · No uploads · No telemetry</footer>
+    </div>
+
+    <script type="module" src="./acceptance.js"></script>
+  </body>
+</html>
