@@ -63,6 +63,20 @@ jobs:
         run: npm run tauri:android:build -- --debug --target aarch64 --apk
       - name: Build debug Android App Bundle
         run: npm run tauri:android:build -- --debug --aab
+      - name: Upload Android debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: media-player-android-debug-apk
+          path: src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload Android debug AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: media-player-android-debug-aab
+          path: src-tauri/gen/android/app/build/outputs/bundle/universalDebug/app-universal-debug.aab
+          if-no-files-found: error
+          retention-days: 14
 
   ios:
     name: iOS / Apple Silicon simulator
@@ -80,3 +94,10 @@ jobs:
         run: npm run tauri:ios:init -- --ci
       - name: Build iOS simulator app
         run: npm run tauri:ios:build -- --debug --target aarch64-sim --no-sign
+      - name: Upload iOS simulator app
+        uses: actions/upload-artifact@v4
+        with:
+          name: media-player-ios-arm64-simulator
+          path: src-tauri/gen/apple/build/arm64-sim/Media Player.app
+          if-no-files-found: error
+          retention-days: 14
