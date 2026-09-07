@@ -1,5 +1,7 @@
 import { readId3Metadata } from "./metadata.js";
 import {
+  AUDIO_ACCEPT,
+  audioFormatForFile,
   clamp,
   DEFAULT_PLAYBACK_RATE,
   DEFAULT_VOLUME,
@@ -8,7 +10,7 @@ import {
   formatBytes,
   formatTime,
   isMp3File,
-  MP3_ACCEPT,
+  isSupportedAudioFile,
 } from "./player.js";
 import { moveItem, nextIndex, previousIndex, removeItem } from "./queue.js";
 
@@ -41,7 +43,7 @@ const queueSection = document.querySelector("#queue-section");
 const queueList = document.querySelector("#queue-list");
 const clearQueueButton = document.querySelector("#clear-queue-button");
 
-fileInput.accept = MP3_ACCEPT;
+fileInput.accept = AUDIO_ACCEPT;
 
 let queue = [];
 let currentIndex = -1;
@@ -113,7 +115,10 @@ function renderCurrentTrack() {
   trackArtist.textContent = item.metadata?.artist || "Unknown artist";
   trackAlbum.textContent = item.metadata?.album || "";
   trackAlbum.hidden = !item.metadata?.album;
-  trackFile.textContent = `${item.file.name} · ${formatBytes(item.file.size)}`;
+  const formatLabel = audioFormatForFile(item.file)?.label;
+  trackFile.textContent = [item.file.name, formatLabel, formatBytes(item.file.size)]
+    .filter(Boolean)
+    .join(" · ");
   renderCover(item);
   updateMediaSession();
 }
@@ -241,22 +246,22 @@ async function hydrateMetadata(itemId) {
 function addFiles(files) {
   setError();
   const allFiles = Array.from(files ?? []);
-  const accepted = allFiles.filter(isMp3File);
+  const accepted = allFiles.filter(isSupportedAudioFile);
 
   if (accepted.length === 0) {
-    setError("Choose one or more MP3 files to continue.");
+    setError("Choose one or more supported audio files to continue.");
     return;
   }
 
   if (accepted.length !== allFiles.length) {
-    setError("Some files were skipped because this player currently accepts MP3 only.");
+    setError("Some files were skipped because their audio format is not supported by this player.");
   }
 
   const items = accepted.map((file) => ({
     id: makeId(),
     file,
     metadata: { title: null, artist: null, album: null, picture: null },
-    metadataStatus: "loading",
+    metadataStatus: isMp3File(file) ? "loading" : "unavailable",
   }));
 
   queue.push(...items);
@@ -266,7 +271,9 @@ function addFiles(files) {
     void loadTrack(0, { autoplay: false });
   }
 
-  for (const item of items) void hydrateMetadata(item.id);
+  for (const item of items) {
+    if (item.metadataStatus === "loading") void hydrateMetadata(item.id);
+  }
 }
 
 async function loadTrack(index, { autoplay = false } = {}) {
@@ -467,7 +474,7 @@ audio.addEventListener("ended", () => {
 });
 
 audio.addEventListener("error", () => {
-  setError("This MP3 could not be decoded by the current platform.");
+  setError("This audio file could not be decoded by the current platform.");
 });
 
 document.addEventListener("keydown", (event) => {
