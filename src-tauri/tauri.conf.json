@@ -26,6 +26,14 @@
     }
   },
   "bundle": {
-    "active": false
+    "active": true,
+    "icon": ["icons/icon.png", "icons/icon.ico"],
+    "android": {
+      "minSdkVersion": 24,
+      "autoIncrementVersionCode": false
+    },
+    "iOS": {
+      "minimumSystemVersion": "15.0"
+    }
   }
 }
