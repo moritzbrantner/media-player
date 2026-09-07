@@ -50,6 +50,28 @@ test("native CI validates Android APK and AAB package shapes", () => {
   assert.match(nativeWorkflow, /Build debug Android App Bundle/);
 });
 
+test("native CI retains confirmed mobile package outputs", () => {
+  assert.match(nativeWorkflow, /actions\/upload-artifact@v7/);
+  assert.match(nativeWorkflow, /name: media-player-android-debug-apk/);
+  assert.match(
+    nativeWorkflow,
+    /src-tauri\/gen\/android\/app\/build\/outputs\/apk\/universal\/debug\/app-universal-debug\.apk/,
+  );
+  assert.match(nativeWorkflow, /name: media-player-android-debug-aab/);
+  assert.match(
+    nativeWorkflow,
+    /src-tauri\/gen\/android\/app\/build\/outputs\/bundle\/universalDebug\/app-universal-debug\.aab/,
+  );
+  assert.match(nativeWorkflow, /name: Archive iOS simulator app/);
+  assert.match(
+    nativeWorkflow,
+    /tar -czf media-player-ios-arm64-simulator\.tar\.gz -C src-tauri\/gen\/apple\/build\/arm64-sim "Media Player\.app"/,
+  );
+  assert.match(nativeWorkflow, /name: media-player-ios-arm64-simulator/);
+  assert.match(nativeWorkflow, /path: media-player-ios-arm64-simulator\.tar\.gz/);
+  assert.equal((nativeWorkflow.match(/if-no-files-found: error/g) ?? []).length, 3);
+});
+
 test("Tauri mobile baseline and bundling are explicit", () => {
   assert.equal(tauriConfig.identifier, "com.moenarch.mediaplayer");
   assert.equal(tauriConfig.bundle.active, true);
