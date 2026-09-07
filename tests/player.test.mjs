@@ -53,9 +53,10 @@ test("audio format detection accepts extensions or MIME types", () => {
   }
 });
 
-test("audio format detection rejects unrelated and video-only inputs", () => {
+test("audio format detection rejects unrelated and explicit video inputs", () => {
   assert.equal(isSupportedAudioFile({ name: "cover.jpg", type: "image/jpeg" }), false);
   assert.equal(isSupportedAudioFile({ name: "movie.mp4", type: "video/mp4" }), false);
+  assert.equal(isSupportedAudioFile({ name: "movie.webm", type: "video/webm" }), false);
   assert.equal(isSupportedAudioFile({ name: "notes.txt", type: "" }), false);
 });
 
@@ -65,7 +66,7 @@ test("MP3 detection stays narrow for ID3 metadata parsing", () => {
   assert.equal(isMp3File({ name: "track.wav", type: "audio/wav" }), false);
 });
 
-test("file extension takes precedence over a conflicting MIME type", () => {
+test("file extension takes precedence over a conflicting audio MIME type", () => {
   assert.equal(audioFormatForFile({ name: "track.flac", type: "audio/mpeg" })?.id, "flac");
 });
 
