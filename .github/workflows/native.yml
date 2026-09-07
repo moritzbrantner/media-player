@@ -94,10 +94,12 @@ jobs:
         run: npm run tauri:ios:init -- --ci
       - name: Build iOS simulator app
         run: npm run tauri:ios:build -- --debug --target aarch64-sim --no-sign
+      - name: Archive iOS simulator app
+        run: tar -czf media-player-ios-arm64-simulator.tar.gz -C src-tauri/gen/apple/build/arm64-sim "Media Player.app"
       - name: Upload iOS simulator app
         uses: actions/upload-artifact@v4
         with:
           name: media-player-ios-arm64-simulator
-          path: src-tauri/gen/apple/build/arm64-sim/Media Player.app
+          path: media-player-ios-arm64-simulator.tar.gz
           if-no-files-found: error
           retention-days: 14
