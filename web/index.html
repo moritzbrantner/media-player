@@ -8,6 +8,7 @@
     <title>Media Player</title>
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./mobile.css" />
+    <link rel="stylesheet" href="./dj.css" />
   </head>
   <body>
     <div class="app-shell">
@@ -107,13 +108,46 @@
         </section>
 
         <section id="queue-section" class="queue-section" aria-labelledby="queue-title" hidden>
-          <div class="section-heading">
+          <div class="section-heading queue-heading">
             <div>
               <p class="eyebrow">Up next</p>
               <h2 id="queue-title">Queue</h2>
             </div>
-            <button id="clear-queue-button" class="text-button" type="button">Clear queue</button>
+            <div class="queue-toolbar" aria-label="Queue playback modes">
+              <button id="randomize-queue-button" class="text-button" type="button">Blue-noise shuffle</button>
+              <label class="auto-dj-toggle" for="auto-dj-toggle">
+                <input id="auto-dj-toggle" type="checkbox" />
+                <span>Auto DJ</span>
+              </label>
+              <button id="clear-queue-button" class="text-button" type="button">Clear queue</button>
+            </div>
           </div>
+
+          <details class="blue-noise-settings">
+            <summary>Blue-noise settings</summary>
+            <div class="blue-noise-grid">
+              <label for="blue-noise-spacing">
+                <span>Recent spacing <output id="blue-noise-spacing-value" for="blue-noise-spacing">4 tracks</output></span>
+                <input id="blue-noise-spacing" type="range" min="1" max="12" step="1" value="4" />
+              </label>
+              <label for="blue-noise-artist">
+                <span>Artist separation <output id="blue-noise-artist-value" for="blue-noise-artist">85%</output></span>
+                <input id="blue-noise-artist" type="range" min="0" max="1" step="0.05" value="0.85" />
+              </label>
+              <label for="blue-noise-album">
+                <span>Album separation <output id="blue-noise-album-value" for="blue-noise-album">45%</output></span>
+                <input id="blue-noise-album" type="range" min="0" max="1" step="0.05" value="0.45" />
+              </label>
+              <label class="seed-control" for="blue-noise-seed">
+                <span>Seed <small>Leave blank for a fresh local sequence</small></span>
+                <input id="blue-noise-seed" type="text" inputmode="text" autocomplete="off" placeholder="Automatic" />
+              </label>
+            </div>
+            <p class="blue-noise-note">
+              Auto DJ only rebalances the visible upcoming queue. Beat/key-aware transitions will use the shared audio-analysis stack in the next slice.
+            </p>
+          </details>
+
           <ol id="queue-list" class="queue-list"></ol>
         </section>
       </main>
