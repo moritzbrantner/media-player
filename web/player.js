@@ -1,11 +1,79 @@
-export const MP3_ACCEPT = ".mp3,audio/mpeg,audio/mp3";
+const AUDIO_FORMATS = [
+  {
+    id: "mp3",
+    label: "MP3",
+    extensions: [".mp3"],
+    mimeTypes: ["audio/mpeg", "audio/mp3"],
+  },
+  {
+    id: "wav",
+    label: "WAV",
+    extensions: [".wav", ".wave"],
+    mimeTypes: ["audio/wav", "audio/wave", "audio/x-wav"],
+  },
+  {
+    id: "flac",
+    label: "FLAC",
+    extensions: [".flac"],
+    mimeTypes: ["audio/flac", "audio/x-flac"],
+  },
+  {
+    id: "ogg",
+    label: "Ogg/Opus",
+    extensions: [".ogg", ".oga", ".opus"],
+    mimeTypes: ["audio/ogg", "audio/opus"],
+  },
+  {
+    id: "mp4-audio",
+    label: "M4A/AAC",
+    extensions: [".m4a", ".m4b", ".aac"],
+    mimeTypes: ["audio/mp4", "audio/aac", "audio/x-m4a"],
+  },
+  {
+    id: "webm-audio",
+    label: "WebM audio",
+    extensions: [".webm", ".weba"],
+    mimeTypes: ["audio/webm"],
+  },
+];
+
+export const AUDIO_ACCEPT = AUDIO_FORMATS.flatMap((format) => [
+  ...format.extensions,
+  ...format.mimeTypes,
+]).join(",");
 export const DEFAULT_PLAYBACK_RATE = 1;
 export const DEFAULT_VOLUME = 1;
 
+function normalizedMimeType(file) {
+  if (typeof file?.type !== "string") return "";
+  return file.type.toLowerCase().split(";", 1)[0].trim();
+}
+
+function fileExtension(file) {
+  if (typeof file?.name !== "string") return "";
+  const name = file.name.toLowerCase();
+  const dotIndex = name.lastIndexOf(".");
+  return dotIndex >= 0 ? name.slice(dotIndex) : "";
+}
+
+export function audioFormatForFile(file) {
+  const extension = fileExtension(file);
+  if (extension) {
+    const extensionMatch = AUDIO_FORMATS.find((format) => format.extensions.includes(extension));
+    if (extensionMatch) return extensionMatch;
+  }
+
+  const mimeType = normalizedMimeType(file);
+  if (!mimeType) return null;
+  return AUDIO_FORMATS.find((format) => format.mimeTypes.includes(mimeType)) ?? null;
+}
+
+export function isSupportedAudioFile(file) {
+  return audioFormatForFile(file) !== null;
+}
+
 export function isMp3File(file) {
-  const name = typeof file?.name === "string" ? file.name.toLowerCase() : "";
-  const type = typeof file?.type === "string" ? file.type.toLowerCase() : "";
-  return name.endsWith(".mp3") || type === "audio/mpeg" || type === "audio/mp3";
+  return audioFormatForFile(file)?.id === "mp3";
 }
 
 export function clamp(value, minimum, maximum) {
