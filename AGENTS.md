@@ -25,6 +25,8 @@
 - Persist only harmless player preferences such as volume and playback speed; do not persist local file contents.
 - Media Session integration is progressive enhancement and must not be required for playback.
 - Cover-art object URLs must be revoked when replaced.
+- A successful native build is not real-playback evidence. Browser, desktop, Android, and iOS playback acceptance requires the local acceptance runner's mechanical checks plus explicit audible-output confirmation on that target.
+- Keep playback acceptance local and URL-addressable through `acceptance.html?target=...`; do not upload fixtures or acceptance telemetry.
 
 ## Verification
 
