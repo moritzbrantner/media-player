@@ -1,0 +1,171 @@
+html {
+  overscroll-behavior-y: none;
+}
+
+body {
+  -webkit-text-size-adjust: 100%;
+}
+
+#previous-button {
+  grid-area: previous;
+}
+
+#back-button {
+  grid-area: back;
+}
+
+#play-button {
+  grid-area: play;
+}
+
+#forward-button {
+  grid-area: forward;
+}
+
+#next-button {
+  grid-area: next;
+}
+
+.app-footer a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 700px) {
+  .app-shell {
+    width: 100%;
+    padding:
+      max(18px, env(safe-area-inset-top))
+      max(16px, env(safe-area-inset-right))
+      max(20px, env(safe-area-inset-bottom))
+      max(16px, env(safe-area-inset-left));
+  }
+
+  h1 {
+    font-size: clamp(2rem, 12vw, 3rem);
+  }
+
+  .open-surface,
+  .player,
+  .queue-section {
+    border-radius: 18px;
+  }
+
+  .player,
+  .queue-section {
+    padding: 20px 16px;
+  }
+
+  .transport-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-areas:
+      "previous play next"
+      "back . forward";
+    gap: 10px 8px;
+  }
+
+  .transport-button:first-child,
+  .transport-button:last-child {
+    justify-self: stretch;
+  }
+
+  .transport-button,
+  .play-button {
+    min-height: 50px;
+  }
+
+  .transport-button.compact {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .play-button {
+    width: 100%;
+  }
+
+  .playback-settings {
+    gap: 16px;
+  }
+
+  .volume-control,
+  .speed-control {
+    min-height: 48px;
+  }
+
+  .speed-control select {
+    min-height: 44px;
+  }
+
+  input[type="range"] {
+    min-height: 44px;
+  }
+
+  .queue-track {
+    min-height: 52px;
+    padding-block: 12px;
+  }
+
+  .queue-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    padding-left: 0;
+  }
+
+  .queue-actions .icon-button,
+  .queue-actions .text-button {
+    min-width: 0;
+    min-height: 44px;
+  }
+
+  .app-footer {
+    padding-bottom: max(4px, env(safe-area-inset-bottom));
+    line-height: 1.6;
+  }
+}
+
+@media (max-width: 440px) {
+  .now-playing {
+    gap: 14px;
+  }
+
+  .track-copy strong {
+    font-size: 1.16rem;
+  }
+
+  .transport-button:first-child,
+  .transport-button:last-child {
+    font-size: 0.8rem;
+  }
+
+  .transport-button:first-child::after,
+  .transport-button:last-child::after {
+    content: none;
+  }
+}
+
+@media (pointer: coarse) {
+  button,
+  label[for="file-input"],
+  .queue-track,
+  select {
+    touch-action: manipulation;
+  }
+
+  .primary-button,
+  .play-button,
+  .transport-button,
+  .icon-button,
+  .text-button,
+  .queue-track {
+    min-height: 48px;
+  }
+
+  .icon-button {
+    min-width: 48px;
+  }
+
+  input[type="range"] {
+    min-height: 48px;
+  }
+}
