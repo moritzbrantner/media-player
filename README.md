@@ -2,12 +2,14 @@
 
 Cross-platform local media player built with web platform APIs, Rust, and Tauri 2.
 
-The current product slice is a usable MP3 player rather than only a playback proof: add multiple local tracks, read their embedded metadata and artwork, arrange a queue, and control playback. The same browser-native media path is used on GitHub Pages and inside Tauri WebViews, so local files stay on the device and the app does not need broad filesystem permissions.
+The current product slice is a usable local audio player rather than only a playback proof: add multiple local tracks, read MP3 ID3 metadata and artwork, arrange a queue, and control playback. The same browser-native media path is used on GitHub Pages and inside Tauri WebViews, so local files stay on the device and the app does not need broad filesystem permissions.
 
 ## Current capabilities
 
-- Add one or more local `.mp3` files.
-- Read ID3 title, artist, album, and embedded cover art in the browser/WebView.
+- Add one or more local MP3, WAV, FLAC, Ogg/Opus, M4A/AAC, or WebM audio files.
+- Let the browser/WebView remain authoritative for decoding; exact codec/container playback support can vary by platform.
+- Read ID3 title, artist, album, and embedded cover art from MP3 files in the browser/WebView.
+- Fall back to the local filename and file size when a format does not use the app's bounded ID3 parser.
 - Play/pause, seek, jump ±10 seconds, and move to previous/next tracks.
 - Reorder and remove queue entries; automatically continue to the next track.
 - Persist volume and playback speed locally.
@@ -19,7 +21,7 @@ Hosted web player: <https://moritzbrantner.github.io/media-player/>
 
 ## Architecture
 
-- `web/`: portable player, queue, ID3 parser, and browser/WebView integration.
+- `web/`: portable player, queue, bounded ID3 parser, format admission, and browser/WebView integration.
 - `src-tauri/`: minimal Rust/Tauri host and the extension point for capabilities that genuinely need native integration.
 - `.github/workflows/verify.yml`: fast web and Rust checks.
 - `.github/workflows/native.yml`: Windows, macOS, Linux, Android, and iOS build validation.
@@ -27,9 +29,9 @@ Hosted web player: <https://moritzbrantner.github.io/media-player/>
 
 ### Ownership boundary
 
-The Web Media API is authoritative for basic playback. The queue owns playback order. ID3 parsing is intentionally browser-local because the browser already owns the selected `File` objects and no native bridge is needed for this bounded metadata work.
+The Web Media API is authoritative for basic playback and codec/container support. The queue owns playback order. File-format admission is intentionally a small browser-local registry based on file extensions and MIME types; it does not claim that every admitted codec decodes on every WebView. ID3 parsing stays MP3-specific because the browser already owns the selected `File` objects and no native bridge is needed for this bounded metadata work.
 
-For heavier decoding, waveform generation, signal analysis, or capabilities that need a native backend, reuse the existing `audio-analysis` Rust surfaces rather than creating a second audio stack in this repository.
+For heavier decoding, waveform generation, signal analysis, richer cross-format metadata extraction, or capabilities that need a native backend, reuse the existing `audio-analysis` Rust surfaces rather than creating a second audio stack in this repository.
 
 ## Development
 
