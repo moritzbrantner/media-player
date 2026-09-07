@@ -6,26 +6,6 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 
-#previous-button {
-  grid-area: previous;
-}
-
-#back-button {
-  grid-area: back;
-}
-
-#play-button {
-  grid-area: play;
-}
-
-#forward-button {
-  grid-area: forward;
-}
-
-#next-button {
-  grid-area: next;
-}
-
 .app-footer a {
   color: inherit;
   text-underline-offset: 3px;
@@ -62,6 +42,26 @@ body {
       "previous play next"
       "back . forward";
     gap: 10px 8px;
+  }
+
+  #previous-button {
+    grid-area: previous;
+  }
+
+  #back-button {
+    grid-area: back;
+  }
+
+  #play-button {
+    grid-area: play;
+  }
+
+  #forward-button {
+    grid-area: forward;
+  }
+
+  #next-button {
+    grid-area: next;
   }
 
   .transport-button:first-child,
