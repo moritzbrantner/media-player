@@ -1,0 +1,47 @@
+[project]
+name = "media-player"
+repo = "."
+baseline_ref = "main"
+
+[eval]
+work_dir = ".moonlight/evals"
+keep_worktrees = "failed"
+jobs = 1
+target_timeout_ms = 900000
+max_body_capture_bytes = 20000
+
+[[checks]]
+id = "blue-noise-tests"
+name = "Blue-noise tests"
+command = "node --test tests/blue-noise.test.mjs"
+cwd = "."
+timeout_ms = 120000
+ignore_stdout = true
+ignore_stderr = true
+
+[[checks]]
+id = "web-tests"
+name = "Web tests"
+command = "node --test tests/*.test.mjs"
+cwd = "."
+timeout_ms = 300000
+ignore_stdout = true
+ignore_stderr = true
+
+[[checks]]
+id = "web-build"
+name = "Static web build"
+command = "node scripts/build-web.mjs"
+cwd = "."
+timeout_ms = 300000
+ignore_stdout = true
+ignore_stderr = true
+
+[[checks]]
+id = "web-syntax"
+name = "Web syntax checks"
+command = "node --check web/app.js && node --check web/blue-noise.js && node --check web/player.js && node --check web/queue.js"
+cwd = "."
+timeout_ms = 120000
+ignore_stdout = true
+ignore_stderr = true
