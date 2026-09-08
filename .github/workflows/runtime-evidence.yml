@@ -48,15 +48,7 @@ jobs:
           cargo install --git https://github.com/moritzbrantner/runtime-profiler --rev "$RUNTIME_PROFILER_REV" --locked
 
       - name: Give the base the identical blue-noise workload
-        run: |
-          mkdir -p reference/profiles/runtime-profiler
-          cp candidate/scripts/profile-blue-noise.mjs reference/scripts/profile-blue-noise.mjs
-          cp candidate/profiles/runtime-profiler/blue-noise.json reference/profiles/runtime-profiler/blue-noise.json
-          git -C reference add scripts/profile-blue-noise.mjs profiles/runtime-profiler/blue-noise.json
-          git -C reference \
-            -c user.name='runtime-profiler' \
-            -c user.email='runtime-profiler@invalid' \
-            commit -m 'chore: attach comparable blue-noise workload'
+        run: candidate/scripts/prepare-blue-noise-reference.sh candidate reference
 
       - name: Prime deterministic workload
         run: |
