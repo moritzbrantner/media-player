@@ -97,8 +97,8 @@ impl LibraryStore {
         }
 
         let bytes = fs::read(&path).map_err(io_error("read media library index"))?;
-        let index: LibraryIndex =
-            serde_json::from_slice(&bytes).map_err(|error| format!("parse media library index: {error}"))?;
+        let index: LibraryIndex = serde_json::from_slice(&bytes)
+            .map_err(|error| format!("parse media library index: {error}"))?;
         if index.version != INDEX_VERSION {
             return Err(format!(
                 "unsupported media library index version {}",
@@ -247,7 +247,11 @@ impl LibraryStore {
         self.commit_temp_import(session)
     }
 
-    fn abort_import(&self, state: &LibraryImportState, session_id: &str) -> Result<(), String> {
+    fn abort_import(
+        &self,
+        state: &LibraryImportState,
+        session_id: &str,
+    ) -> Result<(), String> {
         let session = state
             .sessions
             .lock()
@@ -368,9 +372,9 @@ impl LibraryStore {
     fn track_path(&self, track: &LibraryTrack) -> Result<PathBuf, String> {
         let relative = Path::new(&track.relative_path);
         if relative.is_absolute()
-            || relative
-                .components()
-                .any(|component| !matches!(component, Component::Normal(_)))
+            || relative.components().any(|component| {
+                !matches!(component, Component::Normal(_))
+            })
         {
             return Err("media library index contains an unsafe path".to_string());
         }
@@ -394,12 +398,7 @@ pub fn begin_library_import(
     mime_type: Option<String>,
     expected_size: u64,
 ) -> Result<LibraryImportStarted, String> {
-    library_store(&app)?.begin_import(
-        &state,
-        name,
-        mime_type.unwrap_or_default(),
-        expected_size,
-    )
+    library_store(&app)?.begin_import(&state, name, mime_type.unwrap_or_default(), expected_size)
 }
 
 #[tauri::command]
