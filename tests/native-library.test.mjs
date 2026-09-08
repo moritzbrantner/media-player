@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createNativeLibraryApi, queueItemFromLibraryTrack } from "../web/native-library.js";
+import {
+  createNativeLibraryApi,
+  filterLibraryTracks,
+  queueItemFromLibraryTrack,
+} from "../web/native-library.js";
 
 function mockTauri() {
   const calls = [];
@@ -99,4 +103,17 @@ test("persisted track produces stable queue identity and asset source", async ()
   assert.equal(item.sourceUrl, "asset:/app/media/song.mp3");
   assert.equal(item.file.name, "saved.flac");
   assert.equal(item.file.size, 1234);
+});
+
+test("library filtering is deterministic and locale-stable", () => {
+  const tracks = [
+    { name: "Messe in h-Moll.flac", mimeType: "audio/flac" },
+    { name: "Requiem.mp3", mimeType: "audio/mpeg" },
+    { name: "Voice Note.opus", mimeType: "audio/opus" },
+  ];
+
+  assert.deepEqual(filterLibraryTracks(tracks, "requiem"), [tracks[1]]);
+  assert.deepEqual(filterLibraryTracks(tracks, "OPUS"), [tracks[2]]);
+  assert.deepEqual(filterLibraryTracks(tracks, "  "), tracks);
+  assert.deepEqual(filterLibraryTracks(tracks, "missing"), []);
 });
