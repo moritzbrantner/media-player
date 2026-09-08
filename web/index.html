@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./mobile.css" />
     <link rel="stylesheet" href="./dj.css" />
+    <link rel="stylesheet" href="./library.css" />
   </head>
   <body>
     <div class="app-shell">
@@ -38,6 +39,23 @@
         </section>
 
         <p id="error-message" class="error-message" role="alert" hidden></p>
+
+        <section id="native-library-section" class="native-library-section" aria-labelledby="library-title" hidden>
+          <div class="section-heading library-heading">
+            <div>
+              <p class="eyebrow">Installed app</p>
+              <h2 id="library-title">Library</h2>
+              <p class="library-copy">Import once into this app's private storage, then add persisted tracks to the visible queue after restart.</p>
+            </div>
+            <div class="library-toolbar">
+              <input id="library-import-input" class="visually-hidden" type="file" multiple />
+              <label class="primary-button" for="library-import-input">Import to Library</label>
+              <button id="library-refresh-button" class="text-button" type="button">Refresh</button>
+            </div>
+          </div>
+          <p id="library-status" class="library-status" aria-live="polite"></p>
+          <ul id="library-list" class="library-list"></ul>
+        </section>
 
         <section id="empty-state" class="empty-state" aria-live="polite">
           <span>No tracks loaded</span>
@@ -159,5 +177,6 @@
     </div>
 
     <script type="module" src="./app.js"></script>
+    <script type="module" src="./native-library-ui.js"></script>
   </body>
 </html>
