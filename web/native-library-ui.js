@@ -3,6 +3,7 @@ import {
   createNativeLibraryApi,
   dispatchLibraryQueueAdd,
   dispatchLibraryQueueRemove,
+  filterLibraryTracks,
   queueItemFromLibraryTrack,
 } from "./native-library.js";
 
@@ -12,8 +13,10 @@ const section = document.querySelector("#native-library-section");
 if (api && section) {
   const importInput = document.querySelector("#library-import-input");
   const refreshButton = document.querySelector("#library-refresh-button");
+  const filterInput = document.querySelector("#library-filter-input");
   const status = document.querySelector("#library-status");
   const list = document.querySelector("#library-list");
+  let tracks = [];
 
   section.hidden = false;
   importInput.accept = AUDIO_ACCEPT;
@@ -38,7 +41,8 @@ if (api && section) {
     dispatchLibraryQueueAdd(window, item, { autoplay });
   }
 
-  function renderTracks(tracks) {
+  function renderTracks() {
+    const visibleTracks = filterLibraryTracks(tracks, filterInput.value);
     list.replaceChildren();
 
     if (tracks.length === 0) {
@@ -49,7 +53,15 @@ if (api && section) {
       return;
     }
 
-    for (const track of tracks) {
+    if (visibleTracks.length === 0) {
+      const empty = document.createElement("li");
+      empty.className = "library-empty";
+      empty.textContent = "No imported tracks match this filter.";
+      list.append(empty);
+      return;
+    }
+
+    for (const track of visibleTracks) {
       const row = document.createElement("li");
       row.className = "library-item";
 
@@ -109,14 +121,15 @@ if (api && section) {
   async function refreshLibrary() {
     refreshButton.disabled = true;
     try {
-      const tracks = await api.listTracks();
-      renderTracks(tracks);
+      tracks = await api.listTracks();
+      renderTracks();
       setStatus(
         tracks.length === 0
           ? "Import audio once to keep it in this installed app."
           : `${tracks.length} imported track${tracks.length === 1 ? "" : "s"} available after restart.`,
       );
     } catch (error) {
+      tracks = [];
       list.replaceChildren();
       setStatus(`Could not read the native library: ${error?.message || error}`, "error");
     } finally {
@@ -153,6 +166,7 @@ if (api && section) {
     })();
   });
 
+  filterInput.addEventListener("input", renderTracks);
   refreshButton.addEventListener("click", () => void refreshLibrary());
   void refreshLibrary();
 }
