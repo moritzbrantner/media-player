@@ -247,11 +247,7 @@ impl LibraryStore {
         self.commit_temp_import(session)
     }
 
-    fn abort_import(
-        &self,
-        state: &LibraryImportState,
-        session_id: &str,
-    ) -> Result<(), String> {
+    fn abort_import(&self, state: &LibraryImportState, session_id: &str) -> Result<(), String> {
         let session = state
             .sessions
             .lock()
@@ -372,9 +368,9 @@ impl LibraryStore {
     fn track_path(&self, track: &LibraryTrack) -> Result<PathBuf, String> {
         let relative = Path::new(&track.relative_path);
         if relative.is_absolute()
-            || relative.components().any(|component| {
-                !matches!(component, Component::Normal(_))
-            })
+            || relative
+                .components()
+                .any(|component| !matches!(component, Component::Normal(_)))
         {
             return Err("media library index contains an unsafe path".to_string());
         }
@@ -540,7 +536,9 @@ mod tests {
 
     fn import_bytes(store: &LibraryStore, name: &str, bytes: &[u8]) -> LibraryTrack {
         store.ensure_dirs().unwrap();
-        let temp_path = store.imports_dir().join(format!("{}.part", next_session_id()));
+        let temp_path = store
+            .imports_dir()
+            .join(format!("{}.part", next_session_id()));
         fs::write(&temp_path, bytes).unwrap();
         let file = OpenOptions::new().append(true).open(&temp_path).unwrap();
         store
@@ -576,12 +574,7 @@ mod tests {
         let store = test_store("incomplete");
         let state = LibraryImportState::default();
         let started = store
-            .begin_import(
-                &state,
-                "song.mp3".to_string(),
-                "audio/mpeg".to_string(),
-                4,
-            )
+            .begin_import(&state, "song.mp3".to_string(), "audio/mpeg".to_string(), 4)
             .unwrap();
         store
             .append_import(&state, &started.session_id, b"ab")
