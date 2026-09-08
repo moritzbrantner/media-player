@@ -365,10 +365,10 @@ async function loadTrack(index, { autoplay = false } = {}) {
 
   audio.pause();
   if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl);
-  audioObjectUrl = URL.createObjectURL(item.file);
+  audioObjectUrl = item.sourceUrl ? null : URL.createObjectURL(item.file);
 
   currentIndex = index;
-  audio.src = audioObjectUrl;
+  audio.src = item.sourceUrl || audioObjectUrl;
   audio.volume = Number(volume.value);
   audio.playbackRate = Number(playbackRate.value);
   audio.load();
@@ -454,6 +454,38 @@ function removeQueueItem(index) {
   if (autoDjToggle.checked) rebalanceUpcomingQueue();
   else renderQueue();
 }
+
+window.addEventListener("media-player:add-native-track", (event) => {
+  const item = event.detail?.item;
+  const autoplay = Boolean(event.detail?.autoplay);
+  if (!item?.id || !item?.libraryTrackId || !item?.sourceUrl || !item?.file) return;
+
+  let index = queue.findIndex((candidate) => candidate.id === item.id);
+  if (index >= 0) {
+    queue[index] = { ...queue[index], ...item };
+  } else {
+    queue.push(item);
+    if (autoDjToggle.checked) rebalanceUpcomingQueue();
+    else renderQueue();
+    index = queue.findIndex((candidate) => candidate.id === item.id);
+  }
+
+  if (index < 0) return;
+  if (currentIndex < 0 || autoplay) {
+    void loadTrack(index, { autoplay });
+  } else {
+    renderQueue();
+  }
+});
+
+window.addEventListener("media-player:remove-native-track", (event) => {
+  const trackId = event.detail?.trackId;
+  if (!trackId) return;
+
+  for (let index = queue.length - 1; index >= 0; index -= 1) {
+    if (queue[index]?.libraryTrackId === trackId) removeQueueItem(index);
+  }
+});
 
 fileInput.addEventListener("change", () => {
   addFiles(fileInput.files);
