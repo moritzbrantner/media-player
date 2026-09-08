@@ -8,6 +8,7 @@
 - ID3 title, artist, album, and embedded artwork are currently parsed from the user-selected browser `File`; keep this bounded and local.
 - Rust/Tauri owns native application integration and is the extension point for capabilities that actually need native code.
 - Reuse existing `audio-analysis` Rust surfaces for heavier decoding, waveform, analysis, or other audio-domain work instead of duplicating those capabilities here.
+- Native library persistence is an explicit-import exception to ephemeral browser `File` handling: only files the user deliberately imports may be copied into the app-private data directory. Do not scan broad device storage or silently persist ordinary browser-selected files.
 
 ## Cross-platform rules
 
@@ -22,7 +23,7 @@
 
 - Queue operations must be deterministic and preserve the active track by identity when reordering.
 - End-of-track advances to the next queue entry when one exists.
-- Persist only harmless player preferences such as volume and playback speed; do not persist local file contents.
+- Persist harmless player preferences freely; persist media contents only through the explicit native-library import path in app-private storage.
 - Media Session integration is progressive enhancement and must not be required for playback.
 - Cover-art object URLs must be revoked when replaced.
 - A successful native build is not real-playback evidence. Browser, desktop, Android, and iOS playback acceptance requires the local acceptance runner's mechanical checks plus explicit audible-output confirmation on that target.

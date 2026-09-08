@@ -28,7 +28,7 @@ Already implemented:
 
 Goal: on installed Tauri applications, let a user import music once and keep it available across application restarts without broad filesystem access.
 
-### Slice 1A — Native library storage and import
+### Slice 1A — Native library storage and import — implemented
 
 - Add a versioned Rust-owned library index in the application data directory.
 - Copy only explicitly imported media into an application-private media directory.
@@ -37,6 +37,8 @@ Goal: on installed Tauri applications, let a user import music once and keep it 
 - Keep browser/Pages behavior unchanged and make native-library capability progressive enhancement.
 - Expose only narrow Tauri commands needed to import, list, resolve, and remove library entries.
 - Keep format admission and playback compatibility claims separate: admitting/importing a file does not promise that every WebView decodes it.
+
+The native persistence foundation is integrated through bounded chunked imports, stable SHA-256 identity, an app-private versioned index, narrow Tauri commands, interrupted-import cleanup, path-safety checks, and deterministic Rust coverage. The next product slice is the persistent-library UI; broader integrity recovery and migration work remains in Slice 1C.
 
 ### Slice 1B — Persistent-library UI
 
