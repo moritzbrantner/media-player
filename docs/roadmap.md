@@ -38,18 +38,20 @@ Goal: on installed Tauri applications, let a user import music once and keep it 
 - Expose only narrow Tauri commands needed to import, list, resolve, and remove library entries.
 - Keep format admission and playback compatibility claims separate: admitting/importing a file does not promise that every WebView decodes it.
 
-The native persistence foundation is integrated through bounded chunked imports, stable SHA-256 identity, an app-private versioned index, narrow Tauri commands, interrupted-import cleanup, path-safety checks, and deterministic Rust coverage. The next product slice is the persistent-library UI; broader integrity recovery and migration work remains in Slice 1C.
+The native persistence foundation is integrated through bounded chunked imports, stable SHA-256 identity, an app-private versioned index, narrow Tauri commands, interrupted-import cleanup, path-safety checks, and deterministic Rust coverage.
 
-### Slice 1B — Persistent-library UI
+### Slice 1B — Persistent-library UI — implemented
 
 - Add a native-only Library surface listing persisted tracks after restart.
 - Allow adding a library track to the visible queue, playing it now, or removing the imported copy.
 - Keep metadata/artwork compatible with the existing queue model.
 - Add search/filter once the persistent library is established.
 
+The installed-app Library is a progressive enhancement over the hosted player: it imports explicitly selected files through the Rust-owned storage contract, resolves persisted media through a narrowly scoped app-private asset path, and feeds stable library identities into the existing visible queue without creating a second playback authority. Filtering remains local to the loaded library index. The next implementation slice is Slice 1C integrity and migration hardening.
+
 ### Slice 1C — Scale and integrity
 
-- Add bounded/chunked import so large files are not copied through one unbounded IPC payload.
+- Add bounded/chunked import so large files are not copied through one unbounded IPC payload. *(Implemented in Slice 1A.)*
 - Recover safely from interrupted imports and stale temporary files.
 - Detect missing/corrupt entries without damaging the rest of the library.
 - Add deterministic migration tests for future library-index versions.
