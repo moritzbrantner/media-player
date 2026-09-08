@@ -8,7 +8,7 @@
     "dev:web": "node scripts/serve.mjs",
     "build:web": "node scripts/build-web.mjs",
     "test": "node --test tests/*.test.mjs",
-    "verify:web": "npm run test && npm run build:web && node --check web/app.js && node --check web/acceptance.js && node --check web/metadata.js && node --check web/playback-acceptance.js && node --check web/player.js && node --check web/queue.js",
+    "verify:web": "npm run test && npm run build:web && node --check web/app.js && node --check web/acceptance.js && node --check web/blue-noise.js && node --check web/metadata.js && node --check web/playback-acceptance.js && node --check web/player.js && node --check web/queue.js",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build --no-bundle",

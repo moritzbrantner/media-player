@@ -12,10 +12,16 @@ import {
   isMp3File,
   isSupportedAudioFile,
 } from "./player.js";
+import { blueNoiseReorderUpcoming, normalizeBlueNoiseSettings } from "./blue-noise.js";
 import { moveItem, nextIndex, previousIndex, removeItem } from "./queue.js";
 
 const STORAGE_VOLUME = "media-player.volume";
 const STORAGE_RATE = "media-player.playback-rate";
+const STORAGE_AUTO_DJ = "media-player.auto-dj";
+const STORAGE_BLUE_NOISE_SPACING = "media-player.blue-noise.spacing";
+const STORAGE_BLUE_NOISE_ARTIST = "media-player.blue-noise.artist-weight";
+const STORAGE_BLUE_NOISE_ALBUM = "media-player.blue-noise.album-weight";
+const STORAGE_BLUE_NOISE_SEED = "media-player.blue-noise.seed";
 
 const audio = document.querySelector("#audio");
 const fileInput = document.querySelector("#file-input");
@@ -42,6 +48,15 @@ const errorMessage = document.querySelector("#error-message");
 const queueSection = document.querySelector("#queue-section");
 const queueList = document.querySelector("#queue-list");
 const clearQueueButton = document.querySelector("#clear-queue-button");
+const randomizeQueueButton = document.querySelector("#randomize-queue-button");
+const autoDjToggle = document.querySelector("#auto-dj-toggle");
+const blueNoiseSpacing = document.querySelector("#blue-noise-spacing");
+const blueNoiseSpacingValue = document.querySelector("#blue-noise-spacing-value");
+const blueNoiseArtist = document.querySelector("#blue-noise-artist");
+const blueNoiseArtistValue = document.querySelector("#blue-noise-artist-value");
+const blueNoiseAlbum = document.querySelector("#blue-noise-album");
+const blueNoiseAlbumValue = document.querySelector("#blue-noise-album-value");
+const blueNoiseSeed = document.querySelector("#blue-noise-seed");
 
 fileInput.accept = AUDIO_ACCEPT;
 
@@ -49,6 +64,7 @@ let queue = [];
 let currentIndex = -1;
 let audioObjectUrl = null;
 let coverObjectUrl = null;
+let autoDjSessionSeed = "";
 
 function makeId() {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
@@ -56,11 +72,26 @@ function makeId() {
 
 function readNumberSetting(key, fallback) {
   try {
-    const value = Number(localStorage.getItem(key));
+    const stored = localStorage.getItem(key);
+    if (stored === null) return fallback;
+    const value = Number(stored);
     return Number.isFinite(value) ? value : fallback;
   } catch {
     return fallback;
   }
+}
+
+function readStringSetting(key, fallback = "") {
+  try {
+    return localStorage.getItem(key) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function readBooleanSetting(key, fallback = false) {
+  const value = readStringSetting(key, fallback ? "true" : "false");
+  return value === "true";
 }
 
 function writeSetting(key, value) {
@@ -168,6 +199,7 @@ function renderQueue() {
   queueSection.hidden = !hasTracks;
   emptyState.hidden = hasTracks;
   player.hidden = !hasTracks;
+  randomizeQueueButton.disabled = queue.length <= Math.max(1, currentIndex + 1);
   updateTransportAvailability();
 }
 
@@ -226,6 +258,51 @@ function configureMediaActions() {
   }
 }
 
+function renderBlueNoiseSettings() {
+  const settings = normalizeBlueNoiseSettings({
+    spacing: blueNoiseSpacing.value,
+    artistWeight: blueNoiseArtist.value,
+    albumWeight: blueNoiseAlbum.value,
+    seed: blueNoiseSeed.value,
+  });
+  blueNoiseSpacingValue.textContent = `${settings.spacing} track${settings.spacing === 1 ? "" : "s"}`;
+  blueNoiseArtistValue.textContent = `${Math.round(settings.artistWeight * 100)}%`;
+  blueNoiseAlbumValue.textContent = `${Math.round(settings.albumWeight * 100)}%`;
+}
+
+function currentBlueNoiseSettings({ freshSeed = false } = {}) {
+  const settings = normalizeBlueNoiseSettings({
+    spacing: blueNoiseSpacing.value,
+    artistWeight: blueNoiseArtist.value,
+    albumWeight: blueNoiseAlbum.value,
+    seed: blueNoiseSeed.value,
+  });
+
+  if (settings.seed) return settings;
+  if (freshSeed || !autoDjSessionSeed) autoDjSessionSeed = makeId();
+  return { ...settings, seed: autoDjSessionSeed };
+}
+
+function rebalanceUpcomingQueue({ freshSeed = false } = {}) {
+  if (queue.length <= Math.max(1, currentIndex + 1)) return;
+  queue = blueNoiseReorderUpcoming(queue, currentIndex, currentBlueNoiseSettings({ freshSeed }));
+  renderQueue();
+}
+
+function persistBlueNoiseSettings() {
+  const settings = normalizeBlueNoiseSettings({
+    spacing: blueNoiseSpacing.value,
+    artistWeight: blueNoiseArtist.value,
+    albumWeight: blueNoiseAlbum.value,
+    seed: blueNoiseSeed.value,
+  });
+  writeSetting(STORAGE_BLUE_NOISE_SPACING, settings.spacing);
+  writeSetting(STORAGE_BLUE_NOISE_ARTIST, settings.artistWeight);
+  writeSetting(STORAGE_BLUE_NOISE_ALBUM, settings.albumWeight);
+  writeSetting(STORAGE_BLUE_NOISE_SEED, settings.seed);
+  renderBlueNoiseSettings();
+}
+
 async function hydrateMetadata(itemId) {
   const item = queue.find((candidate) => candidate.id === itemId);
   if (!item) return;
@@ -265,14 +342,20 @@ function addFiles(files) {
   }));
 
   queue.push(...items);
-  renderQueue();
+  if (autoDjToggle.checked) rebalanceUpcomingQueue();
+  else renderQueue();
 
   if (currentIndex < 0) {
     void loadTrack(0, { autoplay: false });
   }
 
+  const metadataTasks = [];
   for (const item of items) {
-    if (item.metadataStatus === "loading") void hydrateMetadata(item.id);
+    if (item.metadataStatus === "loading") metadataTasks.push(hydrateMetadata(item.id));
+  }
+
+  if (autoDjToggle.checked && metadataTasks.length > 0) {
+    void Promise.all(metadataTasks).then(() => rebalanceUpcomingQueue());
   }
 }
 
@@ -368,7 +451,8 @@ function removeQueueItem(index) {
   }
 
   currentIndex = queue.findIndex((item) => item.id === activeId);
-  renderQueue();
+  if (autoDjToggle.checked) rebalanceUpcomingQueue();
+  else renderQueue();
 }
 
 fileInput.addEventListener("change", () => {
@@ -399,6 +483,27 @@ previousButton.addEventListener("click", () => void goPrevious());
 nextButton.addEventListener("click", () => void goNext());
 backButton.addEventListener("click", () => seekBy(-10));
 forwardButton.addEventListener("click", () => seekBy(10));
+randomizeQueueButton.addEventListener("click", () => rebalanceUpcomingQueue({ freshSeed: true }));
+
+autoDjToggle.addEventListener("change", () => {
+  writeSetting(STORAGE_AUTO_DJ, autoDjToggle.checked);
+  autoDjSessionSeed = "";
+  if (autoDjToggle.checked) rebalanceUpcomingQueue({ freshSeed: true });
+});
+
+for (const input of [blueNoiseSpacing, blueNoiseArtist, blueNoiseAlbum]) {
+  input.addEventListener("input", renderBlueNoiseSettings);
+  input.addEventListener("change", () => {
+    persistBlueNoiseSettings();
+    if (autoDjToggle.checked) rebalanceUpcomingQueue();
+  });
+}
+
+blueNoiseSeed.addEventListener("change", () => {
+  persistBlueNoiseSettings();
+  autoDjSessionSeed = "";
+  if (autoDjToggle.checked) rebalanceUpcomingQueue({ freshSeed: true });
+});
 
 seek.addEventListener("input", () => {
   const requestedTime = Number(seek.value);
@@ -499,11 +604,23 @@ const initialVolume = clamp(readNumberSetting(STORAGE_VOLUME, DEFAULT_VOLUME), 0
 const storedRate = readNumberSetting(STORAGE_RATE, DEFAULT_PLAYBACK_RATE);
 const allowedRates = Array.from(playbackRate.options, (option) => Number(option.value));
 const initialRate = allowedRates.includes(storedRate) ? storedRate : DEFAULT_PLAYBACK_RATE;
+const initialBlueNoise = normalizeBlueNoiseSettings({
+  spacing: readNumberSetting(STORAGE_BLUE_NOISE_SPACING, 4),
+  artistWeight: readNumberSetting(STORAGE_BLUE_NOISE_ARTIST, 0.85),
+  albumWeight: readNumberSetting(STORAGE_BLUE_NOISE_ALBUM, 0.45),
+  seed: readStringSetting(STORAGE_BLUE_NOISE_SEED, ""),
+});
 
 volume.value = String(initialVolume);
 audio.volume = initialVolume;
 playbackRate.value = String(initialRate);
 audio.playbackRate = initialRate;
+autoDjToggle.checked = readBooleanSetting(STORAGE_AUTO_DJ, false);
+blueNoiseSpacing.value = String(initialBlueNoise.spacing);
+blueNoiseArtist.value = String(initialBlueNoise.artistWeight);
+blueNoiseAlbum.value = String(initialBlueNoise.albumWeight);
+blueNoiseSeed.value = initialBlueNoise.seed;
+renderBlueNoiseSettings();
 
 configureMediaActions();
 renderQueue();
