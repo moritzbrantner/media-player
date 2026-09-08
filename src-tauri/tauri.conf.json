@@ -10,6 +10,7 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "label": "main",
@@ -22,7 +23,11 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; style-src 'self'; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost ws://127.0.0.1:* http://127.0.0.1:* ws://localhost:* http://localhost:*"
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$APPDATA/media-library/media/**/*"]
+      },
+      "csp": "default-src 'self'; img-src 'self' blob: data: asset: http://asset.localhost; media-src 'self' blob: asset: http://asset.localhost; style-src 'self'; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost ws://127.0.0.1:* http://127.0.0.1:* ws://localhost:* http://localhost:*"
     }
   },
   "bundle": {
