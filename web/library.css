@@ -45,6 +45,22 @@
   align-items: center;
 }
 
+.library-filter {
+  width: min(100%, 420px);
+  min-height: 44px;
+  padding: 10px 12px;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  font: inherit;
+}
+
+.library-filter:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
 .library-list {
   display: grid;
   gap: 10px;
@@ -89,7 +105,8 @@
   }
 
   .library-toolbar,
-  .library-actions {
+  .library-actions,
+  .library-filter {
     width: 100%;
   }
 
