@@ -414,9 +414,7 @@ async function goPrevious() {
 
 async function goNext() {
   const index = nextIndex(queue.length, currentIndex);
-  if (index < 0) return;
-  await loadTrack(index, { autoplay: true });
-  if (autoDjToggle.checked) rebalanceUpcomingQueue();
+  if (index >= 0) await loadTrack(index, { autoplay: true });
 }
 
 function moveQueueItem(fromIndex, toIndex) {
@@ -571,9 +569,7 @@ audio.addEventListener("ratechange", () => {
 audio.addEventListener("ended", () => {
   const index = nextIndex(queue.length, currentIndex);
   if (index >= 0) {
-    void loadTrack(index, { autoplay: true }).then(() => {
-      if (autoDjToggle.checked) rebalanceUpcomingQueue();
-    });
+    void loadTrack(index, { autoplay: true });
     return;
   }
 
