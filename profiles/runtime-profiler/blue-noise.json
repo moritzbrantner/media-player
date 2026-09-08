@@ -1,0 +1,16 @@
+{
+  "schema_version": "runtime-profiler/scenario/v1",
+  "id": "media-player-blue-noise",
+  "target": {
+    "type": "command",
+    "program": "node",
+    "args": ["scripts/profile-blue-noise.mjs"],
+    "working_directory": "../.."
+  },
+  "run": {
+    "warmup_iterations": 1,
+    "measurement_iterations": 7,
+    "timeout_seconds": 60
+  },
+  "collectors": ["process"]
+}
