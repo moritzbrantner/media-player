@@ -13,13 +13,19 @@ const section = document.querySelector("#native-library-section");
 if (api && section) {
   const importInput = document.querySelector("#library-import-input");
   const refreshButton = document.querySelector("#library-refresh-button");
-  const filterInput = document.querySelector("#library-filter-input");
   const status = document.querySelector("#library-status");
   const list = document.querySelector("#library-list");
+  const filterInput = document.createElement("input");
   let tracks = [];
 
   section.hidden = false;
   importInput.accept = AUDIO_ACCEPT;
+  filterInput.id = "library-filter-input";
+  filterInput.className = "library-filter";
+  filterInput.type = "search";
+  filterInput.placeholder = "Filter imported tracks";
+  filterInput.setAttribute("aria-label", "Filter imported tracks");
+  status.insertAdjacentElement("afterend", filterInput);
 
   function setStatus(message, state = "idle") {
     status.textContent = message;
