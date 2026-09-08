@@ -1,0 +1,128 @@
+name: Runtime evidence and Moonlight
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  RUNTIME_PROFILER_REV: 8280c95feb2a1075efa0480a9622e40c723e0b3a
+  MOONLIGHT_REV: a615843b6497cfa0e746224673592c107d969bda
+
+jobs:
+  blue-noise-evidence:
+    name: Blue-noise runtime evidence and behavior
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: candidate
+          fetch-depth: 0
+
+      - name: Check out exact base
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: reference
+          fetch-depth: 0
+
+      - name: Check out pinned Moonlight
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: moritzbrantner/moonlight
+          ref: ${{ env.MOONLIGHT_REV }}
+          path: moonlight
+
+      - name: Install Rust tools
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          cargo install --git https://github.com/moritzbrantner/runtime-profiler --rev "$RUNTIME_PROFILER_REV" --locked
+
+      - name: Give the base the identical blue-noise workload
+        run: |
+          mkdir -p reference/profiles/runtime-profiler
+          cp candidate/scripts/profile-blue-noise.mjs reference/scripts/profile-blue-noise.mjs
+          cp candidate/profiles/runtime-profiler/blue-noise.json reference/profiles/runtime-profiler/blue-noise.json
+          git -C reference add scripts/profile-blue-noise.mjs profiles/runtime-profiler/blue-noise.json
+          git -C reference \
+            -c user.name='runtime-profiler' \
+            -c user.email='runtime-profiler@invalid' \
+            commit -m 'chore: attach comparable blue-noise workload'
+
+      - name: Prime deterministic workload
+        run: |
+          (cd reference && node scripts/profile-blue-noise.mjs >/dev/null)
+          (cd candidate && node scripts/profile-blue-noise.mjs >/dev/null)
+          test -z "$(git -C reference status --porcelain)"
+          test -z "$(git -C candidate status --porcelain)"
+
+      - name: Capture reference evidence
+        working-directory: reference
+        run: |
+          runtime-profiler capture \
+            --scenario profiles/runtime-profiler/blue-noise.json \
+            --output "$RUNNER_TEMP/reference-blue-noise"
+          runtime-profiler validate --bundle "$RUNNER_TEMP/reference-blue-noise"
+
+      - name: Capture candidate evidence
+        working-directory: candidate
+        run: |
+          runtime-profiler capture \
+            --scenario profiles/runtime-profiler/blue-noise.json \
+            --output "$RUNNER_TEMP/candidate-blue-noise"
+          runtime-profiler validate --bundle "$RUNNER_TEMP/candidate-blue-noise"
+
+      - name: Compare runtime evidence
+        run: |
+          set -euo pipefail
+          runtime-profiler score \
+            --reference "$RUNNER_TEMP/reference-blue-noise" \
+            --candidate "$RUNNER_TEMP/candidate-blue-noise" \
+            --json | tee "$RUNNER_TEMP/runtime-blue-noise.json"
+          {
+            echo '### runtime-profiler comparison'
+            echo '```json'
+            cat "$RUNNER_TEMP/runtime-blue-noise.json"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run Moonlight correctness evaluation
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          git fetch origin "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+          cargo run --quiet \
+            --manifest-path ../moonlight/Cargo.toml \
+            -p moonlight-cli --bin moonlight -- \
+            eval run \
+            --project moonlight.eval.toml \
+            --storage-path .moonlight/runtime-evidence.jsonl \
+            --format markdown \
+            --baseline-ref "${{ github.event.pull_request.base.sha }}" \
+            --candidate-ref "${{ github.event.pull_request.head.sha }}" \
+            | tee "$RUNNER_TEMP/moonlight.md"
+          {
+            echo '### Moonlight evaluation'
+            cat "$RUNNER_TEMP/moonlight.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: blue-noise-runtime-moonlight-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/reference-blue-noise
+            ${{ runner.temp }}/candidate-blue-noise
+            ${{ runner.temp }}/runtime-blue-noise.json
+            ${{ runner.temp }}/moonlight.md
+          if-no-files-found: warn
