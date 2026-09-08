@@ -243,7 +243,6 @@ impl LibraryStore {
             .file
             .sync_all()
             .map_err(io_error("sync library import"))?;
-        drop(session.file);
 
         self.commit_temp_import(session)
     }
@@ -264,33 +263,43 @@ impl LibraryStore {
     }
 
     fn commit_temp_import(&self, session: ImportSession) -> Result<LibraryTrack, String> {
+        let ImportSession {
+            file,
+            temp_path,
+            name,
+            mime_type,
+            expected_size,
+            received_size: _,
+        } = session;
+        drop(file);
+
         self.ensure_dirs()?;
-        let id = sha256_file(&session.temp_path)?;
+        let id = sha256_file(&temp_path)?;
         let mut index = self.load_index()?;
 
         if let Some(existing) = index.tracks.iter().find(|track| track.id == id).cloned() {
             let existing_path = self.track_path(&existing)?;
             if existing_path.exists() {
-                let _ = fs::remove_file(&session.temp_path);
+                let _ = fs::remove_file(&temp_path);
                 return Ok(existing);
             }
         }
 
-        let relative_path = library_relative_path(&id, &session.name);
+        let relative_path = library_relative_path(&id, &name);
         let final_path = self.root.join(&relative_path);
         let created_file = if final_path.exists() {
-            fs::remove_file(&session.temp_path).map_err(io_error("discard duplicate library import"))?;
+            fs::remove_file(&temp_path).map_err(io_error("discard duplicate library import"))?;
             false
         } else {
-            fs::rename(&session.temp_path, &final_path).map_err(io_error("commit library media file"))?;
+            fs::rename(&temp_path, &final_path).map_err(io_error("commit library media file"))?;
             true
         };
 
         let track = LibraryTrack {
             id: id.clone(),
-            name: session.name,
-            mime_type: session.mime_type,
-            size: session.expected_size,
+            name,
+            mime_type,
+            size: expected_size,
             relative_path,
         };
         index.tracks.retain(|candidate| candidate.id != id);
@@ -359,9 +368,9 @@ impl LibraryStore {
     fn track_path(&self, track: &LibraryTrack) -> Result<PathBuf, String> {
         let relative = Path::new(&track.relative_path);
         if relative.is_absolute()
-            || relative.components().any(|component| {
-                !matches!(component, Component::Normal(_))
-            })
+            || relative
+                .components()
+                .any(|component| !matches!(component, Component::Normal(_)))
         {
             return Err("media library index contains an unsafe path".to_string());
         }
@@ -458,7 +467,9 @@ fn normalized_extension(name: &str) -> Option<String> {
     let extension = Path::new(name).extension()?.to_str()?.to_ascii_lowercase();
     if extension.is_empty()
         || extension.len() > 10
-        || !extension.chars().all(|character| character.is_ascii_alphanumeric())
+        || !extension
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric())
     {
         return None;
     }
