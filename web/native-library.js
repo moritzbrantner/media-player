@@ -69,6 +69,19 @@ export function createNativeLibraryApi(tauri = globalThis.__TAURI__) {
   };
 }
 
+export function filterLibraryTracks(tracks, query) {
+  if (!Array.isArray(tracks)) return [];
+  const normalized = typeof query === "string" ? query.trim().toLocaleLowerCase("en-US") : "";
+  if (!normalized) return [...tracks];
+
+  return tracks.filter((track) => {
+    const fields = [track?.name, track?.mimeType]
+      .filter((value) => typeof value === "string")
+      .map((value) => value.toLocaleLowerCase("en-US"));
+    return fields.some((value) => value.includes(normalized));
+  });
+}
+
 export function queueItemFromLibraryTrack(track, sourceUrl) {
   if (!track?.id || !track?.name || !Number.isFinite(track?.size) || !sourceUrl) {
     throw new Error("Cannot create a queue item from an incomplete library track.");
