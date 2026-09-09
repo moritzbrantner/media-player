@@ -152,7 +152,10 @@ impl LibraryStore {
                 .file_type()
                 .map_err(io_error("read import entry type"))?
                 .is_file()
-                && lock_path.extension().and_then(|extension| extension.to_str()) == Some("lock");
+                && lock_path
+                    .extension()
+                    .and_then(|extension| extension.to_str())
+                    == Some("lock");
             if !is_import_lock {
                 continue;
             }
@@ -267,7 +270,11 @@ impl LibraryStore {
         lock_file
             .lock()
             .map_err(io_error("lock library import session"))?;
-        let file = match OpenOptions::new().create_new(true).write(true).open(&temp_path) {
+        let file = match OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(&temp_path)
+        {
             Ok(file) => file,
             Err(error) => {
                 drop(lock_file);
@@ -400,7 +407,8 @@ impl LibraryStore {
         if let Some(existing) = index.tracks.iter().find(|track| track.id == id).cloned() {
             let existing_path = self.track_path(&existing)?;
             if existing_path.exists() {
-                fs::remove_file(&temp_path).map_err(io_error("discard duplicate library import"))?;
+                fs::remove_file(&temp_path)
+                    .map_err(io_error("discard duplicate library import"))?;
                 drop(lock_file);
                 remove_file_if_exists(&lock_path, "remove library import lock")?;
                 return Ok(existing);
