@@ -57,9 +57,11 @@
               <input id="library-import-input" class="visually-hidden" type="file" multiple />
               <label class="primary-button" for="library-import-input">Import to Library</label>
               <button id="library-refresh-button" class="text-button" type="button">Refresh</button>
+              <button id="library-integrity-button" class="text-button" type="button">Check integrity</button>
             </div>
           </div>
           <p id="library-status" class="library-status" aria-live="polite"></p>
+          <ul id="library-integrity-list" class="library-integrity-list" aria-label="Library integrity issues" hidden></ul>
           <ul id="library-list" class="library-list"></ul>
         </section>
 
