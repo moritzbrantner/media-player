@@ -9,6 +9,7 @@
 - Rust/Tauri owns native application integration and is the extension point for capabilities that actually need native code.
 - Reuse existing `audio-analysis` Rust surfaces for heavier decoding, waveform, analysis, or other audio-domain work instead of duplicating those capabilities here.
 - Native library persistence is an explicit-import exception to ephemeral browser `File` handling: only files the user deliberately imports may be copied into the app-private data directory. Do not scan broad device storage or silently persist ordinary browser-selected files.
+- Native-library startup recovery may remove only known transaction debris. Integrity inspection must report damage without silently deleting, repairing, or rewriting affected entries.
 
 ## Cross-platform rules
 
@@ -39,6 +40,6 @@ cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
-CI also validates desktop builds on Windows/macOS/Linux and debug mobile builds for Android/iOS.
+CI currently validates desktop builds on Windows/macOS/Linux. Android/iOS package and device validation are local-only until the hosted mobile jobs are deliberately restored.
 
 For visual changes, capture the affected player surface when practical.
