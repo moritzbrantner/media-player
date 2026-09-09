@@ -23,6 +23,7 @@ Already implemented:
 - Android APK/AAB and iOS simulator CI artifacts
 - local browser/desktop/Android/iOS playback-acceptance harness
 - GitHub Pages static player
+- persistent mobile mini-player plus narrow-screen Library / Now Playing / Queue navigation
 
 ## Priority 1 — Persistent native music library
 
@@ -95,15 +96,19 @@ After stable native track identities exist:
 - make state writes transactional/idempotent so crashes cannot corrupt the library
 - never autoplay unexpectedly on application launch; restore state without starting audio until platform/user policy permits it
 
-## Priority 5 — Mobile information architecture
+## Priority 5 — Mobile information architecture — navigation implemented
 
-Evolve the narrow-screen UI into clear mobile surfaces without forking the underlying product model:
+The narrow-screen shell now exposes explicit Library, Now Playing, and Queue views without forking the underlying product model. The same existing DOM/player/queue surfaces remain authoritative; mobile navigation only controls presentation.
 
-- Library
-- Now Playing
-- Queue
+- Library combines local file selection with the installed-app persistent library when Tauri is available.
+- Now Playing uses the existing player and transport controls.
+- Queue uses the existing visible queue, Auto-DJ policy, and explicit touch-friendly move/remove controls.
+- The persistent mini-player remains visible while browsing Library or Queue and opens Now Playing when its track summary is activated.
+- `?view=library`, `?view=now-playing`, and `?view=queue` preserve meaningful hosted-web navigation state and browser back/forward behavior.
+- Views whose underlying player/queue state is unavailable remain disabled rather than inventing hidden playback state.
+- Desktop keeps the combined layout; the split is narrow-screen presentation only.
 
-Add a persistent mini-player for navigation between surfaces. Keep URL/query state meaningful on the hosted build where practical. Do not make drag gestures the only queue-editing mechanism; retain explicit touch-friendly move controls.
+Further work under this priority should be acceptance and ergonomic refinement rather than a second mobile product model.
 
 ## Priority 6 — Mobile-aware Auto-DJ and shared analysis
 

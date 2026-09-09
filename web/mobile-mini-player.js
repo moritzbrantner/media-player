@@ -70,6 +70,15 @@ export function setupMobileMiniPlayer(doc = globalThis.document) {
   }
 
   summaryButton.addEventListener("click", () => {
+    const targetWindow = doc.defaultView || globalThis.window;
+    const CustomEventImpl = targetWindow?.CustomEvent || globalThis.CustomEvent;
+    if (targetWindow && CustomEventImpl) {
+      targetWindow.dispatchEvent(
+        new CustomEventImpl("media-player:navigate-mobile", {
+          detail: { view: "now-playing" },
+        }),
+      );
+    }
     player.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 

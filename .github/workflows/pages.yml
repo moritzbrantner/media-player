@@ -63,6 +63,7 @@ jobs:
               grep -q 'id="queue-list"' page.html
               grep -q 'id="play-button"' page.html
               grep -q 'id="mobile-mini-player"' page.html
+              grep -q 'id="mobile-view-nav"' page.html
 
               ACCEPTANCE_URL="${PAGE_URL%/}/acceptance.html?target=browser"
               curl --fail --location --silent --show-error "$ACCEPTANCE_URL" -o acceptance.html
