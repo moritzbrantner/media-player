@@ -18,6 +18,10 @@ export function createNativeLibraryApi(tauri = globalThis.__TAURI__) {
       return core.invoke("list_library_tracks");
     },
 
+    async inspectIntegrity() {
+      return core.invoke("inspect_library_integrity");
+    },
+
     async resolveSource(trackId) {
       const path = await core.invoke("resolve_library_track", { id: trackId });
       return core.convertFileSrc(path);
@@ -60,7 +64,7 @@ export function createNativeLibraryApi(tauri = globalThis.__TAURI__) {
           try {
             await core.invoke("abort_library_import", { sessionId });
           } catch {
-            // Preserve the original import failure; stale-temp recovery belongs to Slice 1C.
+            // Preserve the original import failure; startup recovery removes orphaned .part files.
           }
         }
         throw error;
