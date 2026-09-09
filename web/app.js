@@ -13,6 +13,14 @@ import {
   isSupportedAudioFile,
 } from "./player.js";
 import { blueNoiseReorderUpcoming, normalizeBlueNoiseSettings } from "./blue-noise.js";
+import {
+  boundedRestorePosition,
+  isStableLibraryTrackId,
+  playbackStateSnapshot,
+  PLAYBACK_STATE_RESTORE_EVENT,
+  PLAYBACK_STATE_SNAPSHOT_EVENT,
+  restoredCurrentIndex,
+} from "./playback-state.js";
 import { moveItem, nextIndex, previousIndex, removeItem } from "./queue.js";
 
 const STORAGE_VOLUME = "media-player.volume";
@@ -65,6 +73,8 @@ let currentIndex = -1;
 let audioObjectUrl = null;
 let coverObjectUrl = null;
 let autoDjSessionSeed = "";
+let pendingRestorePosition = null;
+let restoringPlaybackState = false;
 
 function makeId() {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
@@ -100,6 +110,17 @@ function writeSetting(key, value) {
   } catch {
     // Playback still works when storage is unavailable.
   }
+}
+
+function emitPlaybackStateSnapshot({ immediate = false } = {}) {
+  if (restoringPlaybackState) return;
+  const state = playbackStateSnapshot(queue, currentIndex, audio.currentTime);
+  if (!state) return;
+  window.dispatchEvent(
+    new CustomEvent(PLAYBACK_STATE_SNAPSHOT_EVENT, {
+      detail: { state, immediate },
+    }),
+  );
 }
 
 function setError(message = "") {
@@ -287,6 +308,7 @@ function rebalanceUpcomingQueue({ freshSeed = false } = {}) {
   if (queue.length <= Math.max(1, currentIndex + 1)) return;
   queue = blueNoiseReorderUpcoming(queue, currentIndex, currentBlueNoiseSettings({ freshSeed }));
   renderQueue();
+  emitPlaybackStateSnapshot({ immediate: true });
 }
 
 function persistBlueNoiseSettings() {
@@ -359,9 +381,16 @@ function addFiles(files) {
   }
 }
 
-async function loadTrack(index, { autoplay = false } = {}) {
+async function loadTrack(index, { autoplay = false, positionSeconds = null } = {}) {
   const item = queue[index];
   if (!item) return;
+
+  if (restoringPlaybackState && positionSeconds === null) {
+    restoringPlaybackState = false;
+  }
+  pendingRestorePosition = Number.isFinite(Number(positionSeconds))
+    ? Number(positionSeconds)
+    : null;
 
   audio.pause();
   if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl);
@@ -376,6 +405,7 @@ async function loadTrack(index, { autoplay = false } = {}) {
   resetTimeline();
   renderCurrentTrack();
   renderQueue();
+  emitPlaybackStateSnapshot({ immediate: true });
 
   if (autoplay) {
     try {
@@ -405,6 +435,7 @@ async function togglePlayback() {
 function seekBy(seconds) {
   if (!audio.src || !Number.isFinite(audio.duration)) return;
   audio.currentTime = clamp(audio.currentTime + seconds, 0, audio.duration);
+  emitPlaybackStateSnapshot();
 }
 
 async function goPrevious() {
@@ -423,6 +454,7 @@ function moveQueueItem(fromIndex, toIndex) {
   queue = moveItem(queue, fromIndex, toIndex);
   currentIndex = queue.findIndex((item) => item.id === activeId);
   renderQueue();
+  emitPlaybackStateSnapshot({ immediate: true });
 }
 
 function removeQueueItem(index) {
@@ -435,12 +467,15 @@ function removeQueueItem(index) {
 
   if (queue.length === 0) {
     currentIndex = -1;
+    restoringPlaybackState = false;
+    pendingRestorePosition = null;
     audio.pause();
     audio.removeAttribute("src");
     audio.load();
     revokeActiveUrls();
     resetTimeline();
     renderQueue();
+    emitPlaybackStateSnapshot({ immediate: true });
     return;
   }
 
@@ -452,8 +487,44 @@ function removeQueueItem(index) {
 
   currentIndex = queue.findIndex((item) => item.id === activeId);
   if (autoDjToggle.checked) rebalanceUpcomingQueue();
-  else renderQueue();
+  else {
+    renderQueue();
+    emitPlaybackStateSnapshot({ immediate: true });
+  }
 }
+
+window.addEventListener(PLAYBACK_STATE_RESTORE_EVENT, (event) => {
+  if (queue.length > 0 || currentIndex >= 0 || audio.getAttribute("src")) return;
+
+  const restoredItems = [];
+  const seen = new Set();
+  for (const item of event.detail?.items ?? []) {
+    const trackId = item?.libraryTrackId;
+    if (
+      !isStableLibraryTrackId(trackId)
+      || seen.has(trackId)
+      || !item?.id
+      || !item?.sourceUrl
+      || !item?.file
+    ) {
+      continue;
+    }
+    seen.add(trackId);
+    restoredItems.push(item);
+  }
+  if (restoredItems.length === 0) return;
+
+  queue = restoredItems;
+  const index = restoredCurrentIndex(queue, event.detail?.currentTrackId);
+  if (index < 0) return;
+
+  restoringPlaybackState = true;
+  renderQueue();
+  void loadTrack(index, {
+    autoplay: false,
+    positionSeconds: Number(event.detail?.positionSeconds) || 0,
+  });
+});
 
 window.addEventListener("media-player:add-native-track", (event) => {
   const item = event.detail?.item;
@@ -475,6 +546,7 @@ window.addEventListener("media-player:add-native-track", (event) => {
     void loadTrack(index, { autoplay });
   } else {
     renderQueue();
+    emitPlaybackStateSnapshot({ immediate: true });
   }
 });
 
@@ -539,7 +611,10 @@ blueNoiseSeed.addEventListener("change", () => {
 
 seek.addEventListener("input", () => {
   const requestedTime = Number(seek.value);
-  if (Number.isFinite(requestedTime)) audio.currentTime = requestedTime;
+  if (Number.isFinite(requestedTime)) {
+    audio.currentTime = requestedTime;
+    emitPlaybackStateSnapshot();
+  }
 });
 
 volume.addEventListener("input", () => {
@@ -557,18 +632,30 @@ playbackRate.addEventListener("change", () => {
 clearQueueButton.addEventListener("click", () => {
   queue = [];
   currentIndex = -1;
+  restoringPlaybackState = false;
+  pendingRestorePosition = null;
   audio.pause();
   audio.removeAttribute("src");
   audio.load();
   revokeActiveUrls();
   resetTimeline();
   renderQueue();
+  emitPlaybackStateSnapshot({ immediate: true });
 });
 
 audio.addEventListener("loadedmetadata", () => {
   const mediaDuration = Number.isFinite(audio.duration) ? audio.duration : 0;
   seek.max = String(mediaDuration);
   duration.textContent = formatTime(mediaDuration);
+
+  if (pendingRestorePosition !== null) {
+    audio.currentTime = boundedRestorePosition(pendingRestorePosition, mediaDuration);
+    pendingRestorePosition = null;
+  }
+  if (restoringPlaybackState) {
+    restoringPlaybackState = false;
+    emitPlaybackStateSnapshot({ immediate: true });
+  }
 });
 
 audio.addEventListener("durationchange", () => {
@@ -580,6 +667,7 @@ audio.addEventListener("durationchange", () => {
 audio.addEventListener("timeupdate", () => {
   seek.value = String(audio.currentTime);
   currentTime.textContent = formatTime(audio.currentTime);
+  emitPlaybackStateSnapshot();
 });
 
 audio.addEventListener("play", () => {
@@ -590,6 +678,7 @@ audio.addEventListener("play", () => {
 audio.addEventListener("pause", () => {
   playButton.textContent = "Play";
   playButton.setAttribute("aria-label", "Play");
+  emitPlaybackStateSnapshot({ immediate: true });
 });
 
 audio.addEventListener("ratechange", () => {
@@ -608,9 +697,12 @@ audio.addEventListener("ended", () => {
   audio.currentTime = 0;
   seek.value = "0";
   currentTime.textContent = "0:00";
+  emitPlaybackStateSnapshot({ immediate: true });
 });
 
 audio.addEventListener("error", () => {
+  pendingRestorePosition = null;
+  restoringPlaybackState = false;
   setError("This audio file could not be decoded by the current platform.");
 });
 
