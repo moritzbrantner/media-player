@@ -595,9 +595,7 @@ pub fn list_library_tracks(app: tauri::AppHandle) -> Result<Vec<LibraryTrack>, S
 }
 
 #[tauri::command]
-pub fn inspect_library_integrity(
-    app: tauri::AppHandle,
-) -> Result<LibraryIntegrityReport, String> {
+pub fn inspect_library_integrity(app: tauri::AppHandle) -> Result<LibraryIntegrityReport, String> {
     library_store(&app)?.inspect_integrity()
 }
 
@@ -864,8 +862,7 @@ mod tests {
             issue.id == wrong_size.id && issue.kind == LibraryIntegrityIssueKind::SizeMismatch
         }));
         assert!(report.issues.iter().any(|issue| {
-            issue.id == wrong_content.id
-                && issue.kind == LibraryIntegrityIssueKind::ContentMismatch
+            issue.id == wrong_content.id && issue.kind == LibraryIntegrityIssueKind::ContentMismatch
         }));
         assert_eq!(fs::read(store.index_path()).unwrap(), index_before);
         assert!(store.track_path(&healthy).unwrap().is_file());
