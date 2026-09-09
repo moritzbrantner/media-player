@@ -33,7 +33,35 @@ pub struct LibraryImportStarted {
     pub max_chunk_bytes: usize,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LibraryIntegrityReport {
+    pub checked_tracks: usize,
+    pub healthy_tracks: usize,
+    pub issues: Vec<LibraryIntegrityIssue>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LibraryIntegrityIssue {
+    pub id: String,
+    pub name: String,
+    pub kind: LibraryIntegrityIssueKind,
+    pub detail: String,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum LibraryIntegrityIssueKind {
+    InvalidId,
+    UnsafePath,
+    MissingFile,
+    UnreadableFile,
+    SizeMismatch,
+    ContentMismatch,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 struct LibraryIndex {
     version: u32,
     tracks: Vec<LibraryTrack>,
@@ -84,9 +112,47 @@ impl LibraryStore {
         self.root.join(INDEX_FILE)
     }
 
+    fn pending_index_path(&self) -> PathBuf {
+        self.root.join(format!("{INDEX_FILE}.new"))
+    }
+
     fn ensure_dirs(&self) -> Result<(), String> {
         fs::create_dir_all(self.media_dir()).map_err(io_error("create media library directory"))?;
         fs::create_dir_all(self.imports_dir()).map_err(io_error("create import directory"))?;
+        Ok(())
+    }
+
+    fn recover_startup(&self) -> Result<(), String> {
+        self.ensure_dirs()?;
+
+        for entry in fs::read_dir(self.imports_dir()).map_err(io_error("scan import directory"))? {
+            let entry = entry.map_err(io_error("read import directory entry"))?;
+            let path = entry.path();
+            let is_stale_import = entry
+                .file_type()
+                .map_err(io_error("read import entry type"))?
+                .is_file()
+                && path.extension().and_then(|extension| extension.to_str()) == Some("part");
+            if is_stale_import {
+                fs::remove_file(path).map_err(io_error("remove stale library import"))?;
+            }
+        }
+
+        let pending_index = self.pending_index_path();
+        let final_index = self.index_path();
+        if pending_index.exists() {
+            if final_index.exists() {
+                fs::remove_file(&pending_index)
+                    .map_err(io_error("remove stale media library index transaction"))?;
+            } else {
+                let bytes = fs::read(&pending_index)
+                    .map_err(io_error("read pending media library index"))?;
+                decode_index(&bytes)?;
+                fs::rename(&pending_index, &final_index)
+                    .map_err(io_error("recover media library index"))?;
+            }
+        }
+
         Ok(())
     }
 
@@ -97,22 +163,14 @@ impl LibraryStore {
         }
 
         let bytes = fs::read(&path).map_err(io_error("read media library index"))?;
-        let index: LibraryIndex = serde_json::from_slice(&bytes)
-            .map_err(|error| format!("parse media library index: {error}"))?;
-        if index.version != INDEX_VERSION {
-            return Err(format!(
-                "unsupported media library index version {}",
-                index.version
-            ));
-        }
-        Ok(index)
+        decode_index(&bytes)
     }
 
     fn write_index(&self, index: &LibraryIndex) -> Result<(), String> {
         self.ensure_dirs()?;
         let bytes = serde_json::to_vec_pretty(index)
             .map_err(|error| format!("serialize media library index: {error}"))?;
-        let temporary = self.root.join(format!("{INDEX_FILE}.new"));
+        let temporary = self.pending_index_path();
         let final_path = self.index_path();
 
         let mut file = OpenOptions::new()
@@ -319,6 +377,107 @@ impl LibraryStore {
         Ok(self.load_index()?.tracks)
     }
 
+    fn inspect_integrity(&self) -> Result<LibraryIntegrityReport, String> {
+        let index = self.load_index()?;
+        let checked_tracks = index.tracks.len();
+        let mut healthy_tracks = 0;
+        let mut issues = Vec::new();
+
+        for track in &index.tracks {
+            if let Err(detail) = validate_track_id(&track.id) {
+                issues.push(integrity_issue(
+                    track,
+                    LibraryIntegrityIssueKind::InvalidId,
+                    detail,
+                ));
+                continue;
+            }
+
+            let path = match self.track_path(track) {
+                Ok(path) => path,
+                Err(detail) => {
+                    issues.push(integrity_issue(
+                        track,
+                        LibraryIntegrityIssueKind::UnsafePath,
+                        detail,
+                    ));
+                    continue;
+                }
+            };
+
+            let metadata = match fs::metadata(&path) {
+                Ok(metadata) => metadata,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                    issues.push(integrity_issue(
+                        track,
+                        LibraryIntegrityIssueKind::MissingFile,
+                        "media library track file is missing".to_string(),
+                    ));
+                    continue;
+                }
+                Err(error) => {
+                    issues.push(integrity_issue(
+                        track,
+                        LibraryIntegrityIssueKind::UnreadableFile,
+                        format!("read media library track metadata: {error}"),
+                    ));
+                    continue;
+                }
+            };
+
+            if !metadata.is_file() {
+                issues.push(integrity_issue(
+                    track,
+                    LibraryIntegrityIssueKind::UnreadableFile,
+                    "media library track path is not a regular file".to_string(),
+                ));
+                continue;
+            }
+
+            if metadata.len() != track.size {
+                issues.push(integrity_issue(
+                    track,
+                    LibraryIntegrityIssueKind::SizeMismatch,
+                    format!(
+                        "expected {} bytes, found {} bytes",
+                        track.size,
+                        metadata.len()
+                    ),
+                ));
+                continue;
+            }
+
+            let digest = match sha256_file(&path) {
+                Ok(digest) => digest,
+                Err(detail) => {
+                    issues.push(integrity_issue(
+                        track,
+                        LibraryIntegrityIssueKind::UnreadableFile,
+                        detail,
+                    ));
+                    continue;
+                }
+            };
+
+            if digest != track.id {
+                issues.push(integrity_issue(
+                    track,
+                    LibraryIntegrityIssueKind::ContentMismatch,
+                    "media library track content does not match its stable identity".to_string(),
+                ));
+                continue;
+            }
+
+            healthy_tracks += 1;
+        }
+
+        Ok(LibraryIntegrityReport {
+            checked_tracks,
+            healthy_tracks,
+            issues,
+        })
+    }
+
     fn resolve_track(&self, id: &str) -> Result<String, String> {
         validate_track_id(id)?;
         let index = self.load_index()?;
@@ -368,6 +527,7 @@ impl LibraryStore {
     fn track_path(&self, track: &LibraryTrack) -> Result<PathBuf, String> {
         let relative = Path::new(&track.relative_path);
         if relative.is_absolute()
+            || !relative.starts_with(Path::new("media"))
             || relative
                 .components()
                 .any(|component| !matches!(component, Component::Normal(_)))
@@ -376,6 +536,10 @@ impl LibraryStore {
         }
         Ok(self.root.join(relative))
     }
+}
+
+pub fn recover_library(app: &tauri::AppHandle) -> Result<(), String> {
+    library_store(app)?.recover_startup()
 }
 
 fn library_store(app: &tauri::AppHandle) -> Result<LibraryStore, String> {
@@ -431,6 +595,13 @@ pub fn list_library_tracks(app: tauri::AppHandle) -> Result<Vec<LibraryTrack>, S
 }
 
 #[tauri::command]
+pub fn inspect_library_integrity(
+    app: tauri::AppHandle,
+) -> Result<LibraryIntegrityReport, String> {
+    library_store(&app)?.inspect_integrity()
+}
+
+#[tauri::command]
 pub fn resolve_library_track(app: tauri::AppHandle, id: String) -> Result<String, String> {
     library_store(&app)?.resolve_track(&id)
 }
@@ -438,6 +609,32 @@ pub fn resolve_library_track(app: tauri::AppHandle, id: String) -> Result<String
 #[tauri::command]
 pub fn remove_library_track(app: tauri::AppHandle, id: String) -> Result<(), String> {
     library_store(&app)?.remove_track(&id)
+}
+
+fn decode_index(bytes: &[u8]) -> Result<LibraryIndex, String> {
+    let index: LibraryIndex = serde_json::from_slice(bytes)
+        .map_err(|error| format!("parse media library index: {error}"))?;
+    migrate_index(index)
+}
+
+fn migrate_index(index: LibraryIndex) -> Result<LibraryIndex, String> {
+    match index.version {
+        INDEX_VERSION => Ok(index),
+        version => Err(format!("unsupported media library index version {version}")),
+    }
+}
+
+fn integrity_issue(
+    track: &LibraryTrack,
+    kind: LibraryIntegrityIssueKind,
+    detail: String,
+) -> LibraryIntegrityIssue {
+    LibraryIntegrityIssue {
+        id: track.id.clone(),
+        name: track.name.clone(),
+        kind,
+        detail,
+    }
 }
 
 fn next_session_id() -> String {
@@ -487,13 +684,13 @@ fn validate_track_id(id: &str) -> Result<(), String> {
 }
 
 fn sha256_file(path: &Path) -> Result<String, String> {
-    let mut file = File::open(path).map_err(io_error("open library import for hashing"))?;
+    let mut file = File::open(path).map_err(io_error("open library media for hashing"))?;
     let mut hasher = Sha256::new();
     let mut buffer = [0_u8; 64 * 1024];
     loop {
         let read = file
             .read(&mut buffer)
-            .map_err(io_error("hash library import"))?;
+            .map_err(io_error("hash library media"))?;
         if read == 0 {
             break;
         }
@@ -590,6 +787,44 @@ mod tests {
     }
 
     #[test]
+    fn startup_recovery_removes_only_stale_import_parts() {
+        let store = test_store("startup-import-recovery");
+        store.ensure_dirs().unwrap();
+        let stale = store.imports_dir().join("stale.part");
+        let unrelated = store.imports_dir().join("keep.tmp");
+        let committed = store.media_dir().join("committed.mp3");
+        fs::write(&stale, b"partial").unwrap();
+        fs::write(&unrelated, b"keep").unwrap();
+        fs::write(&committed, b"media").unwrap();
+
+        store.recover_startup().unwrap();
+
+        assert!(!stale.exists());
+        assert!(unrelated.exists());
+        assert!(committed.exists());
+        let _ = fs::remove_dir_all(&store.root);
+    }
+
+    #[test]
+    fn startup_recovery_promotes_a_valid_pending_index_when_final_is_missing() {
+        let store = test_store("startup-index-recovery");
+        store.ensure_dirs().unwrap();
+        let index = LibraryIndex::default();
+        fs::write(
+            store.pending_index_path(),
+            serde_json::to_vec_pretty(&index).unwrap(),
+        )
+        .unwrap();
+
+        store.recover_startup().unwrap();
+
+        assert!(!store.pending_index_path().exists());
+        assert!(store.index_path().is_file());
+        assert_eq!(store.load_index().unwrap(), index);
+        let _ = fs::remove_dir_all(&store.root);
+    }
+
+    #[test]
     fn persisted_index_can_be_reopened_and_track_removed() {
         let store = test_store("persisted");
         let track = import_bytes(&store, "song.flac", b"persistent audio");
@@ -601,6 +836,88 @@ mod tests {
         reopened.remove_track(&track.id).unwrap();
         assert!(reopened.list_tracks().unwrap().is_empty());
         assert!(reopened.resolve_track(&track.id).is_err());
+        let _ = fs::remove_dir_all(&store.root);
+    }
+
+    #[test]
+    fn integrity_inspection_reports_damage_without_mutating_the_library() {
+        let store = test_store("integrity");
+        let healthy = import_bytes(&store, "healthy.mp3", b"healthy");
+        let missing = import_bytes(&store, "missing.mp3", b"missing");
+        let wrong_size = import_bytes(&store, "wrong-size.mp3", b"size");
+        let wrong_content = import_bytes(&store, "wrong-content.mp3", b"same");
+
+        fs::remove_file(store.track_path(&missing).unwrap()).unwrap();
+        fs::write(store.track_path(&wrong_size).unwrap(), b"different length").unwrap();
+        fs::write(store.track_path(&wrong_content).unwrap(), b"else").unwrap();
+        let index_before = fs::read(store.index_path()).unwrap();
+
+        let report = store.inspect_integrity().unwrap();
+
+        assert_eq!(report.checked_tracks, 4);
+        assert_eq!(report.healthy_tracks, 1);
+        assert_eq!(report.issues.len(), 3);
+        assert!(report.issues.iter().any(|issue| {
+            issue.id == missing.id && issue.kind == LibraryIntegrityIssueKind::MissingFile
+        }));
+        assert!(report.issues.iter().any(|issue| {
+            issue.id == wrong_size.id && issue.kind == LibraryIntegrityIssueKind::SizeMismatch
+        }));
+        assert!(report.issues.iter().any(|issue| {
+            issue.id == wrong_content.id
+                && issue.kind == LibraryIntegrityIssueKind::ContentMismatch
+        }));
+        assert_eq!(fs::read(store.index_path()).unwrap(), index_before);
+        assert!(store.track_path(&healthy).unwrap().is_file());
+        let _ = fs::remove_dir_all(&store.root);
+    }
+
+    #[test]
+    fn future_index_versions_fail_closed_without_overwriting_evidence() {
+        let store = test_store("future-index");
+        store.ensure_dirs().unwrap();
+        let future = LibraryIndex {
+            version: INDEX_VERSION + 1,
+            tracks: Vec::new(),
+        };
+        let bytes = serde_json::to_vec_pretty(&future).unwrap();
+        fs::write(store.index_path(), &bytes).unwrap();
+
+        let error = store.load_index().unwrap_err();
+
+        assert!(error.contains("unsupported media library index version"));
+        assert_eq!(fs::read(store.index_path()).unwrap(), bytes);
+        let _ = fs::remove_dir_all(&store.root);
+    }
+
+    #[test]
+    fn invalid_pending_index_is_preserved_for_diagnosis() {
+        let store = test_store("invalid-pending-index");
+        store.ensure_dirs().unwrap();
+        let pending = store.pending_index_path();
+        let bytes = br#"{"version":2,"tracks":[]}"#;
+        fs::write(&pending, bytes).unwrap();
+
+        let error = store.recover_startup().unwrap_err();
+
+        assert!(error.contains("unsupported media library index version"));
+        assert_eq!(fs::read(&pending).unwrap(), bytes);
+        assert!(!store.index_path().exists());
+        let _ = fs::remove_dir_all(&store.root);
+    }
+
+    #[test]
+    fn library_tracks_cannot_escape_the_media_directory() {
+        let store = test_store("non-media-path");
+        let track = LibraryTrack {
+            id: "a".repeat(64),
+            name: "song.mp3".to_string(),
+            mime_type: "audio/mpeg".to_string(),
+            size: 3,
+            relative_path: "library-v1.json".to_string(),
+        };
+
+        assert!(store.track_path(&track).is_err());
         let _ = fs::remove_dir_all(&store.root);
     }
 
