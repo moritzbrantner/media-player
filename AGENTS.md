@@ -9,7 +9,7 @@
 - Rust/Tauri owns native application integration and is the extension point for capabilities that actually need native code.
 - Reuse existing `audio-analysis` Rust surfaces for heavier decoding, waveform, analysis, or other audio-domain work instead of duplicating those capabilities here.
 - Native library persistence is an explicit-import exception to ephemeral browser `File` handling: only files the user deliberately imports may be copied into the app-private data directory. Do not scan broad device storage or silently persist ordinary browser-selected files.
-- Native-library startup recovery may remove only known transaction debris. Integrity inspection must report damage without silently deleting, repairing, or rewriting affected entries.
+- Native-library startup recovery may remove only lock-proven orphaned transaction debris. If a pending index cannot be recovered safely, preserve it and block library access/writes until it is resolved. Integrity inspection must report damage without silently deleting, repairing, or rewriting affected entries.
 
 ## Cross-platform rules
 
