@@ -11,6 +11,10 @@ body {
   text-underline-offset: 3px;
 }
 
+.mobile-mini-player {
+  display: none;
+}
+
 @media (max-width: 700px) {
   .app-shell {
     width: 100%;
@@ -19,6 +23,10 @@ body {
       max(16px, env(safe-area-inset-right))
       max(20px, env(safe-area-inset-bottom))
       max(16px, env(safe-area-inset-left));
+  }
+
+  html[data-mobile-mini-player="active"] .app-shell {
+    padding-bottom: max(112px, calc(92px + env(safe-area-inset-bottom)));
   }
 
   h1 {
@@ -118,6 +126,67 @@ body {
     min-height: 44px;
   }
 
+  .mobile-mini-player:not([hidden]) {
+    position: fixed;
+    z-index: 20;
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    left: max(10px, env(safe-area-inset-left));
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    box-shadow: 0 14px 40px rgba(34, 32, 27, 0.16);
+    backdrop-filter: blur(18px);
+  }
+
+  .mobile-mini-summary {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+    min-height: 48px;
+    padding: 6px 8px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+  }
+
+  .mobile-mini-summary strong,
+  .mobile-mini-summary span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-mini-summary span {
+    color: var(--muted);
+    font-size: 0.78rem;
+  }
+
+  .mobile-mini-controls {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(48px, auto));
+    gap: 6px;
+  }
+
+  .mobile-mini-controls button {
+    min-width: 48px;
+    min-height: 48px;
+    padding: 7px 9px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    color: inherit;
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+
   .app-footer {
     padding-bottom: max(4px, env(safe-area-inset-bottom));
     line-height: 1.6;
@@ -141,6 +210,20 @@ body {
   .transport-button:first-child::after,
   .transport-button:last-child::after {
     content: none;
+  }
+
+  .mobile-mini-player:not([hidden]) {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .mobile-mini-controls {
+    grid-template-columns: repeat(3, 44px);
+  }
+
+  .mobile-mini-controls button {
+    min-width: 44px;
+    padding-inline: 4px;
+    font-size: 0.7rem;
   }
 }
 

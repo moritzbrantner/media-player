@@ -176,7 +176,20 @@
       </footer>
     </div>
 
+    <aside id="mobile-mini-player" class="mobile-mini-player" aria-label="Mobile mini-player" hidden>
+      <button id="mobile-mini-summary" class="mobile-mini-summary" type="button" aria-label="Open now playing">
+        <strong id="mobile-mini-title">Track</strong>
+        <span id="mobile-mini-artist">Local audio</span>
+      </button>
+      <div class="mobile-mini-controls" aria-label="Mini-player controls">
+        <button id="mobile-previous-button" type="button" aria-label="Previous track">Previous</button>
+        <button id="mobile-play-button" type="button" aria-label="Play" disabled>Play</button>
+        <button id="mobile-next-button" type="button" aria-label="Next track">Next</button>
+      </div>
+    </aside>
+
     <script type="module" src="./app.js"></script>
+    <script type="module" src="./mobile-mini-player.js"></script>
     <script type="module" src="./native-library-ui.js"></script>
   </body>
 </html>
