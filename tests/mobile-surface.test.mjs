@@ -13,6 +13,9 @@ const nativeWorkflow = await readFile(
   new URL("../.github/workflows/native.yml", import.meta.url),
   "utf8",
 );
+const packageJson = JSON.parse(
+  await readFile(new URL("../package.json", import.meta.url), "utf8"),
+);
 const tauriConfig = JSON.parse(
   await readFile(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8"),
 );
@@ -44,35 +47,25 @@ test("named transport placement is scoped to the narrow-screen grid", () => {
   assert.doesNotMatch(mobileStyles.slice(0, mobileQuery), /grid-area:/);
 });
 
-test("native CI validates Android APK and AAB package shapes", () => {
-  assert.match(nativeWorkflow, /--apk/);
-  assert.match(nativeWorkflow, /--aab/);
-  assert.match(nativeWorkflow, /Build debug Android App Bundle/);
+test("hosted native CI intentionally leaves mobile packaging to local acceptance", () => {
+  assert.doesNotMatch(nativeWorkflow, /^\s{2}android:/m);
+  assert.doesNotMatch(nativeWorkflow, /^\s{2}ios:/m);
+  assert.doesNotMatch(nativeWorkflow, /--apk|--aab|tauri:ios:build/);
+
+  for (const script of [
+    "tauri:android:init",
+    "tauri:android:dev",
+    "tauri:android:build",
+    "tauri:ios:init",
+    "tauri:ios:dev",
+    "tauri:ios:build",
+  ]) {
+    assert.equal(typeof packageJson.scripts[script], "string");
+    assert.ok(packageJson.scripts[script].length > 0);
+  }
 });
 
-test("native CI retains confirmed mobile package outputs", () => {
-  assert.match(nativeWorkflow, /actions\/upload-artifact@v7/);
-  assert.match(nativeWorkflow, /name: media-player-android-debug-apk/);
-  assert.match(
-    nativeWorkflow,
-    /src-tauri\/gen\/android\/app\/build\/outputs\/apk\/universal\/debug\/app-universal-debug\.apk/,
-  );
-  assert.match(nativeWorkflow, /name: media-player-android-debug-aab/);
-  assert.match(
-    nativeWorkflow,
-    /src-tauri\/gen\/android\/app\/build\/outputs\/bundle\/universalDebug\/app-universal-debug\.aab/,
-  );
-  assert.match(nativeWorkflow, /name: Archive iOS simulator app/);
-  assert.match(
-    nativeWorkflow,
-    /tar -czf media-player-ios-arm64-simulator\.tar\.gz -C src-tauri\/gen\/apple\/build\/arm64-sim "Media Player\.app"/,
-  );
-  assert.match(nativeWorkflow, /name: media-player-ios-arm64-simulator/);
-  assert.match(nativeWorkflow, /path: media-player-ios-arm64-simulator\.tar\.gz/);
-  assert.equal((nativeWorkflow.match(/if-no-files-found: error/g) ?? []).length, 3);
-});
-
-test("Tauri mobile baseline and bundling are explicit", () => {
+test("Tauri mobile baseline and bundling stay explicit while hosted mobile CI is paused", () => {
   assert.equal(tauriConfig.identifier, "com.moenarch.mediaplayer");
   assert.equal(tauriConfig.bundle.active, true);
   assert.deepEqual(tauriConfig.bundle.icon, ["icons/icon.png", "icons/icon.ico"]);

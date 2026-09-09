@@ -20,7 +20,7 @@ Already implemented:
 - previous/next, seeking, volume, playback speed, and Media Session integration
 - deterministic blue-noise shuffle and visible-queue Auto-DJ policy
 - touch-first mobile layout, safe-area handling, and coarse-pointer targets
-- Android APK/AAB and iOS simulator CI artifacts
+- local Android APK/AAB and iOS simulator build commands; hosted mobile package jobs are temporarily paused
 - local browser/desktop/Android/iOS playback-acceptance harness
 - GitHub Pages static player
 - persistent mobile mini-player plus narrow-screen Library / Now Playing / Queue navigation
@@ -68,6 +68,8 @@ Goal: make installed Android/iOS builds behave like real mobile music players wh
 - Introduce a `PlaybackBackend` boundary only if real-device evidence shows WebView playback cannot satisfy the required lifecycle semantics.
 - Preserve hosted-web behavior as a fallback-capable portable player.
 
+While hosted mobile CI is paused, all package/lifecycle claims under this priority require explicit local or real-device evidence rather than a placeholder hosted check.
+
 ## Priority 3 — Expanded physical-device lifecycle acceptance
 
 Extend issue #4 beyond basic audible playback. Real Android and iOS acceptance should cover:
@@ -84,7 +86,7 @@ Extend issue #4 beyond basic audible playback. Real Android and iOS acceptance s
 - app relaunch with persisted library/state
 - graceful decode failure and unsupported-codec fallback
 
-CI packaging remains build evidence, not audible or lifecycle evidence.
+Hosted CI packaging, when enabled, remains build evidence, not audible or lifecycle evidence.
 
 ## Priority 4 — Persist useful playback state
 

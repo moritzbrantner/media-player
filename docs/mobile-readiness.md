@@ -1,32 +1,49 @@
 # Mobile readiness
 
-The portable web player is the application UI on Android and iOS as well as desktop. Mobile readiness therefore requires both native Tauri packaging evidence and touch-first browser/WebView behavior.
+The portable web player is the application UI on Android and iOS as well as desktop. Mobile readiness still requires native package evidence, touch-first browser/WebView behavior, and real-device playback evidence.
 
-## Automated gates
+## Hosted gates
 
-- `npm run verify:web` covers the portable player and mobile surface contracts.
-- Android CI initializes the Tauri Android project, builds an aarch64 debug APK, and builds a debug Android App Bundle (AAB).
-- iOS CI initializes the Tauri iOS project and builds the Apple Silicon simulator app without signing.
-- Desktop CI continues to build the Tauri host on Windows, macOS, and Linux.
-- Mobile jobs fail if the expected Tauri package output disappears, and successful outputs are retained as GitHub Actions artifacts for 14 days.
+- `npm run verify:web` continues to cover the portable player and deterministic mobile-surface contracts.
+- Native CI continues to build the Tauri host on Windows, macOS, and Linux.
+- Android and iOS hosted package jobs are intentionally paused for now.
 
-## Retained artifacts
+A missing hosted Android/iOS job is **not** mobile-green evidence. It means mobile packaging and device acceptance are currently performed explicitly on a developer machine instead of blocking pull requests.
 
-Successful Native workflow runs expose these testing artifacts:
+## Local mobile package checks
 
-- `media-player-android-debug-apk`: installable Android debug APK from `app-universal-debug.apk`.
-- `media-player-android-debug-aab`: Android debug App Bundle from `app-universal-debug.aab`, useful for validating the Play bundle shape.
-- `media-player-ios-arm64-simulator`: a tar-gz archive containing the unsigned Apple Silicon iOS Simulator `.app` bundle.
+The repository keeps the same Tauri commands so mobile validation can be run locally without changing the product or build contract.
 
-The iOS bundle is archived with `tar` before GitHub artifact upload so executable permissions and case-sensitive bundle contents survive download/extraction. The Android packages are already single package files and are uploaded directly.
+Android:
 
-These artifacts are deliberately debug/unsigned outputs. Retaining them makes installation and simulator testing reproducible; it does not turn them into store releases.
+```bash
+npm install
+npm run tauri:android:init -- --ci
+npm run tauri:android:build -- --debug --target aarch64 --apk
+npm run tauri:android:build -- --debug --aab
+```
 
-The Android AAB gate validates the package shape used for Google Play distribution, but it does not replace signing or store submission. The iOS simulator gate validates build compatibility, but App Store distribution still requires signing and real-device acceptance.
+Confirm that the APK and AAB are actually produced and install/test the APK on the intended device when practical.
 
-## Manual gates
+iOS on macOS:
+
+```bash
+npm install
+npm run tauri:ios:init -- --ci
+npm run tauri:ios:build -- --debug --target aarch64-sim --no-sign
+```
+
+Confirm that the simulator app is actually produced. Signing and real-device iOS acceptance remain separate.
+
+## Real-device playback gates
 
 For Android and iOS, run `acceptance.html?target=android` or `acceptance.html?target=ios` in the built app and accept a known-good MP3 only after metadata, playback, time progression, seeking, pause, and audible output all pass on the actual device.
+
+Lifecycle claims such as background/lock-screen playback, audio focus, Bluetooth routing, interruptions, and relaunch recovery also require explicit device evidence. Hosted desktop/web success must not be substituted for those checks.
+
+## Re-enabling hosted mobile CI
+
+When hosted mobile validation becomes useful again, restore Android APK/AAB and iOS simulator jobs in `.github/workflows/native.yml`, restore artifact publication, and only then make those checks required merge gates again. Keep package failure fail-closed rather than adding placeholder green jobs.
 
 ## UI requirements
 
