@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fmt::Write as _;
-use std::fs::{self, File, OpenOptions};
+use std::fs::{self, File, OpenOptions, TryLockError};
 use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -78,7 +78,9 @@ impl Default for LibraryIndex {
 
 struct ImportSession {
     file: File,
+    lock_file: File,
     temp_path: PathBuf,
+    lock_path: PathBuf,
     name: String,
     mime_type: String,
     expected_size: u64,
@@ -116,9 +118,27 @@ impl LibraryStore {
         self.root.join(format!("{INDEX_FILE}.new"))
     }
 
+    fn import_temp_path(&self, session_id: &str) -> PathBuf {
+        self.imports_dir().join(format!("{session_id}.part"))
+    }
+
+    fn import_lock_path(&self, session_id: &str) -> PathBuf {
+        self.imports_dir().join(format!("{session_id}.lock"))
+    }
+
     fn ensure_dirs(&self) -> Result<(), String> {
         fs::create_dir_all(self.media_dir()).map_err(io_error("create media library directory"))?;
         fs::create_dir_all(self.imports_dir()).map_err(io_error("create import directory"))?;
+        Ok(())
+    }
+
+    fn ensure_recovery_complete(&self) -> Result<(), String> {
+        if !self.index_path().exists() && self.pending_index_path().exists() {
+            return Err(
+                "media library recovery is incomplete; preserved pending index requires inspection"
+                    .to_string(),
+            );
+        }
         Ok(())
     }
 
@@ -127,14 +147,40 @@ impl LibraryStore {
 
         for entry in fs::read_dir(self.imports_dir()).map_err(io_error("scan import directory"))? {
             let entry = entry.map_err(io_error("read import directory entry"))?;
-            let path = entry.path();
-            let is_stale_import = entry
+            let lock_path = entry.path();
+            let is_import_lock = entry
                 .file_type()
                 .map_err(io_error("read import entry type"))?
                 .is_file()
-                && path.extension().and_then(|extension| extension.to_str()) == Some("part");
-            if is_stale_import {
-                fs::remove_file(path).map_err(io_error("remove stale library import"))?;
+                && lock_path.extension().and_then(|extension| extension.to_str()) == Some("lock");
+            if !is_import_lock {
+                continue;
+            }
+
+            let lock_file = OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(&lock_path)
+                .map_err(io_error("open library import lock"))?;
+            match lock_file.try_lock() {
+                Ok(()) => {
+                    let session_id = lock_path
+                        .file_stem()
+                        .and_then(|value| value.to_str())
+                        .ok_or_else(|| "library import lock name is not valid UTF-8".to_string())?;
+                    remove_file_if_exists(
+                        &self.import_temp_path(session_id),
+                        "remove orphaned library import",
+                    )?;
+                    drop(lock_file);
+                    remove_file_if_exists(&lock_path, "remove orphaned library import lock")?;
+                }
+                Err(TryLockError::WouldBlock) => {
+                    // Another live process owns this import. Leave both files untouched.
+                }
+                Err(TryLockError::Error(error)) => {
+                    return Err(format!("inspect library import lock: {error}"));
+                }
             }
         }
 
@@ -157,6 +203,7 @@ impl LibraryStore {
     }
 
     fn load_index(&self) -> Result<LibraryIndex, String> {
+        self.ensure_recovery_complete()?;
         let path = self.index_path();
         if !path.exists() {
             return Ok(LibraryIndex::default());
@@ -167,6 +214,7 @@ impl LibraryStore {
     }
 
     fn write_index(&self, index: &LibraryIndex) -> Result<(), String> {
+        self.ensure_recovery_complete()?;
         self.ensure_dirs()?;
         let bytes = serde_json::to_vec_pretty(index)
             .map_err(|error| format!("serialize media library index: {error}"))?;
@@ -195,6 +243,7 @@ impl LibraryStore {
         mime_type: String,
         expected_size: u64,
     ) -> Result<LibraryImportStarted, String> {
+        self.ensure_recovery_complete()?;
         if expected_size == 0 {
             return Err("cannot import an empty audio file".to_string());
         }
@@ -207,15 +256,30 @@ impl LibraryStore {
 
         self.ensure_dirs()?;
         let session_id = next_session_id();
-        let temp_path = self.imports_dir().join(format!("{session_id}.part"));
-        let file = OpenOptions::new()
+        let temp_path = self.import_temp_path(&session_id);
+        let lock_path = self.import_lock_path(&session_id);
+        let lock_file = OpenOptions::new()
             .create_new(true)
+            .read(true)
             .write(true)
-            .open(&temp_path)
-            .map_err(io_error("create library import"))?;
+            .open(&lock_path)
+            .map_err(io_error("create library import lock"))?;
+        lock_file
+            .lock()
+            .map_err(io_error("lock library import session"))?;
+        let file = match OpenOptions::new().create_new(true).write(true).open(&temp_path) {
+            Ok(file) => file,
+            Err(error) => {
+                drop(lock_file);
+                let _ = fs::remove_file(&lock_path);
+                return Err(format!("create library import: {error}"));
+            }
+        };
         let session = ImportSession {
             file,
+            lock_file,
             temp_path,
+            lock_path,
             name: safe_display_name(&name),
             mime_type,
             expected_size,
@@ -286,10 +350,11 @@ impl LibraryStore {
             .ok_or_else(|| "unknown media library import session".to_string())?;
 
         if session.received_size != session.expected_size {
-            let _ = fs::remove_file(&session.temp_path);
+            let received_size = session.received_size;
+            let expected_size = session.expected_size;
+            cleanup_import_session(session)?;
             return Err(format!(
-                "library import is incomplete: received {} of {} bytes",
-                session.received_size, session.expected_size
+                "library import is incomplete: received {received_size} of {expected_size} bytes"
             ));
         }
 
@@ -312,18 +377,15 @@ impl LibraryStore {
             .map_err(|_| "media library import state is unavailable".to_string())?
             .remove(session_id)
             .ok_or_else(|| "unknown media library import session".to_string())?;
-        drop(session.file);
-        match fs::remove_file(&session.temp_path) {
-            Ok(()) => Ok(()),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(error) => Err(format!("abort media library import: {error}")),
-        }
+        cleanup_import_session(session)
     }
 
     fn commit_temp_import(&self, session: ImportSession) -> Result<LibraryTrack, String> {
         let ImportSession {
             file,
+            lock_file,
             temp_path,
+            lock_path,
             name,
             mime_type,
             expected_size,
@@ -338,7 +400,9 @@ impl LibraryStore {
         if let Some(existing) = index.tracks.iter().find(|track| track.id == id).cloned() {
             let existing_path = self.track_path(&existing)?;
             if existing_path.exists() {
-                let _ = fs::remove_file(&temp_path);
+                fs::remove_file(&temp_path).map_err(io_error("discard duplicate library import"))?;
+                drop(lock_file);
+                remove_file_if_exists(&lock_path, "remove library import lock")?;
                 return Ok(existing);
             }
         }
@@ -370,6 +434,8 @@ impl LibraryStore {
             return Err(error);
         }
 
+        drop(lock_file);
+        remove_file_if_exists(&lock_path, "remove library import lock")?;
         Ok(track)
     }
 
@@ -635,6 +701,28 @@ fn integrity_issue(
     }
 }
 
+fn cleanup_import_session(session: ImportSession) -> Result<(), String> {
+    let ImportSession {
+        file,
+        lock_file,
+        temp_path,
+        lock_path,
+        ..
+    } = session;
+    drop(file);
+    remove_file_if_exists(&temp_path, "abort media library import")?;
+    drop(lock_file);
+    remove_file_if_exists(&lock_path, "remove library import lock")
+}
+
+fn remove_file_if_exists(path: &Path, context: &'static str) -> Result<(), String> {
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!("{context}: {error}")),
+    }
+}
+
 fn next_session_id() -> String {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -731,21 +819,19 @@ mod tests {
 
     fn import_bytes(store: &LibraryStore, name: &str, bytes: &[u8]) -> LibraryTrack {
         store.ensure_dirs().unwrap();
-        let temp_path = store
-            .imports_dir()
-            .join(format!("{}.part", next_session_id()));
-        fs::write(&temp_path, bytes).unwrap();
-        let file = OpenOptions::new().append(true).open(&temp_path).unwrap();
+        let state = LibraryImportState::default();
+        let started = store
+            .begin_import(
+                &state,
+                name.to_string(),
+                "audio/mpeg".to_string(),
+                bytes.len() as u64,
+            )
+            .unwrap();
         store
-            .commit_temp_import(ImportSession {
-                file,
-                temp_path,
-                name: safe_display_name(name),
-                mime_type: "audio/mpeg".to_string(),
-                expected_size: bytes.len() as u64,
-                received_size: bytes.len() as u64,
-            })
-            .unwrap()
+            .append_import(&state, &started.session_id, bytes)
+            .unwrap();
+        store.commit_import(&state, &started.session_id).unwrap()
     }
 
     #[test]
@@ -765,7 +851,7 @@ mod tests {
     }
 
     #[test]
-    fn chunked_import_rejects_incomplete_commit_and_cleans_temp_file() {
+    fn chunked_import_rejects_incomplete_commit_and_cleans_transaction_files() {
         let store = test_store("incomplete");
         let state = LibraryImportState::default();
         let started = store
@@ -785,21 +871,48 @@ mod tests {
     }
 
     #[test]
-    fn startup_recovery_removes_only_stale_import_parts() {
+    fn startup_recovery_removes_only_lock_proven_orphaned_imports() {
         let store = test_store("startup-import-recovery");
         store.ensure_dirs().unwrap();
-        let stale = store.imports_dir().join("stale.part");
+        let session_id = "orphan";
+        let stale = store.import_temp_path(session_id);
+        let stale_lock = store.import_lock_path(session_id);
         let unrelated = store.imports_dir().join("keep.tmp");
+        let unproven_part = store.imports_dir().join("legacy.part");
         let committed = store.media_dir().join("committed.mp3");
         fs::write(&stale, b"partial").unwrap();
+        fs::write(&stale_lock, b"").unwrap();
         fs::write(&unrelated, b"keep").unwrap();
+        fs::write(&unproven_part, b"unknown owner").unwrap();
         fs::write(&committed, b"media").unwrap();
 
         store.recover_startup().unwrap();
 
         assert!(!stale.exists());
+        assert!(!stale_lock.exists());
         assert!(unrelated.exists());
+        assert!(unproven_part.exists());
         assert!(committed.exists());
+        let _ = fs::remove_dir_all(&store.root);
+    }
+
+    #[test]
+    fn startup_recovery_preserves_an_active_import_owned_by_another_handle() {
+        let store = test_store("active-import-recovery");
+        let state = LibraryImportState::default();
+        let started = store
+            .begin_import(&state, "song.mp3".to_string(), "audio/mpeg".to_string(), 4)
+            .unwrap();
+        let temp_path = store.import_temp_path(&started.session_id);
+        let lock_path = store.import_lock_path(&started.session_id);
+
+        store.recover_startup().unwrap();
+
+        assert!(temp_path.exists());
+        assert!(lock_path.exists());
+        store.abort_import(&state, &started.session_id).unwrap();
+        assert!(!temp_path.exists());
+        assert!(!lock_path.exists());
         let _ = fs::remove_dir_all(&store.root);
     }
 
@@ -888,18 +1001,26 @@ mod tests {
     }
 
     #[test]
-    fn invalid_pending_index_is_preserved_for_diagnosis() {
+    fn invalid_pending_index_is_preserved_and_blocks_library_access() {
         let store = test_store("invalid-pending-index");
         store.ensure_dirs().unwrap();
         let pending = store.pending_index_path();
         let bytes = br#"{"version":2,"tracks":[]}"#;
         fs::write(&pending, bytes).unwrap();
 
-        let error = store.recover_startup().unwrap_err();
+        let recovery_error = store.recover_startup().unwrap_err();
+        let list_error = store.list_tracks().unwrap_err();
+        let state = LibraryImportState::default();
+        let import_error = store
+            .begin_import(&state, "song.mp3".to_string(), "audio/mpeg".to_string(), 3)
+            .unwrap_err();
 
-        assert!(error.contains("unsupported media library index version"));
+        assert!(recovery_error.contains("unsupported media library index version"));
+        assert!(list_error.contains("recovery is incomplete"));
+        assert!(import_error.contains("recovery is incomplete"));
         assert_eq!(fs::read(&pending).unwrap(), bytes);
         assert!(!store.index_path().exists());
+        assert!(fs::read_dir(store.imports_dir()).unwrap().next().is_none());
         let _ = fs::remove_dir_all(&store.root);
     }
 
