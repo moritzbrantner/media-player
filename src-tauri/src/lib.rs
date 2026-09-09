@@ -1,4 +1,5 @@
 mod library;
+mod playback_state;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -19,6 +20,8 @@ pub fn run() {
             library::inspect_library_integrity,
             library::resolve_library_track,
             library::remove_library_track,
+            playback_state::load_playback_state,
+            playback_state::save_playback_state,
         ])
         .run(tauri::generate_context!())
         .expect("error while running media-player");
