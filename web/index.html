@@ -21,8 +21,14 @@
         <p class="header-copy">Build a queue and play local audio without uploading it.</p>
       </header>
 
+      <nav id="mobile-view-nav" class="mobile-view-nav" aria-label="Player sections" hidden>
+        <button type="button" data-mobile-view-target="library" aria-pressed="false">Library</button>
+        <button type="button" data-mobile-view-target="now-playing" aria-pressed="false">Now Playing</button>
+        <button type="button" data-mobile-view-target="queue" aria-pressed="false">Queue</button>
+      </nav>
+
       <main class="player-surface">
-        <section id="drop-target" class="open-surface" aria-labelledby="open-title">
+        <section id="drop-target" class="open-surface" data-mobile-surface="library" aria-labelledby="open-title">
           <div class="note-mark" aria-hidden="true">♪</div>
           <div class="open-copy">
             <h2 id="open-title">Add local tracks</h2>
@@ -40,7 +46,7 @@
 
         <p id="error-message" class="error-message" role="alert" hidden></p>
 
-        <section id="native-library-section" class="native-library-section" aria-labelledby="library-title" hidden>
+        <section id="native-library-section" class="native-library-section" data-mobile-surface="library" aria-labelledby="library-title" hidden>
           <div class="section-heading library-heading">
             <div>
               <p class="eyebrow">Installed app</p>
@@ -57,12 +63,12 @@
           <ul id="library-list" class="library-list"></ul>
         </section>
 
-        <section id="empty-state" class="empty-state" aria-live="polite">
+        <section id="empty-state" class="empty-state" data-mobile-surface="library" aria-live="polite">
           <span>No tracks loaded</span>
           <span>Your local queue will appear after you add audio files.</span>
         </section>
 
-        <section id="player" class="player" aria-label="Audio player" hidden>
+        <section id="player" class="player" data-mobile-surface="now-playing" aria-label="Audio player" hidden>
           <audio id="audio" preload="metadata"></audio>
 
           <div class="now-playing">
@@ -125,7 +131,7 @@
           <p class="keyboard-hint">Space play/pause · ←/→ seek 10 seconds</p>
         </section>
 
-        <section id="queue-section" class="queue-section" aria-labelledby="queue-title" hidden>
+        <section id="queue-section" class="queue-section" data-mobile-surface="queue" aria-labelledby="queue-title" hidden>
           <div class="section-heading queue-heading">
             <div>
               <p class="eyebrow">Up next</p>
@@ -191,5 +197,6 @@
     <script type="module" src="./app.js"></script>
     <script type="module" src="./mobile-mini-player.js"></script>
     <script type="module" src="./native-library-ui.js"></script>
+    <script type="module" src="./mobile-navigation.js"></script>
   </body>
 </html>
