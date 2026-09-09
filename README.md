@@ -26,9 +26,9 @@ Hosted web player: <https://moritzbrantner.github.io/media-player/>
 - `web/`: portable player, queue, bounded ID3 parser, format admission, playback acceptance, and browser/WebView integration.
 - `src-tauri/`: minimal Rust/Tauri host and the extension point for capabilities that genuinely need native integration.
 - `.github/workflows/verify.yml`: fast web and Rust checks.
-- `.github/workflows/native.yml`: Windows, macOS, Linux, Android, and iOS build validation.
+- `.github/workflows/native.yml`: Windows, macOS, and Linux Tauri build validation; hosted Android/iOS jobs are temporarily paused.
 - `.github/workflows/pages.yml`: static build, deployment, and hosted smoke test.
-- `docs/mobile-readiness.md`: automated and manual gates for treating the Android/iOS applications as ready.
+- `docs/mobile-readiness.md`: hosted/local evidence boundaries for Android/iOS readiness.
 
 ### Ownership boundary
 
@@ -42,14 +42,7 @@ The Android and iOS apps use the same portable player as the hosted web build, w
 
 Tauri's mobile baseline is explicit in `src-tauri/tauri.conf.json`: Android currently targets minimum SDK 24 and iOS minimum system version 15.0. Bundling is enabled and uses the checked-in application icons.
 
-Native CI validates:
-
-- Windows, macOS, and Linux Tauri host builds.
-- An Android aarch64 debug APK for installable-device packaging.
-- An Android debug AAB for the Google Play bundle shape.
-- An unsigned Apple Silicon iOS simulator build.
-
-These are build/package gates. App Store / Play signing and real-device audible playback are separate evidence. See `docs/mobile-readiness.md` and issue #4 for those gates.
+Hosted Native CI currently validates Windows, macOS, and Linux desktop hosts only. Android APK/AAB and iOS simulator package checks are intentionally local-only for now. Their absence from a pull request is not a successful mobile validation result. See `docs/mobile-readiness.md` for the local package and real-device gates.
 
 ## Playback acceptance
 
@@ -93,7 +86,7 @@ npm run tauri:android:init
 npm run tauri:android:dev
 ```
 
-CI validates both Android package shapes:
+Run the local package checks with:
 
 ```bash
 npm run tauri:android:build -- --debug --target aarch64 --apk
@@ -110,7 +103,7 @@ npm run tauri:ios:init
 npm run tauri:ios:dev
 ```
 
-A simulator build can be run with:
+Run the local simulator package check with:
 
 ```bash
 npm run tauri:ios:build -- --debug --target aarch64-sim --no-sign
@@ -124,4 +117,4 @@ cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
-Pull requests additionally compile the Tauri host on Windows, macOS, and Linux, build both Android APK/AAB package shapes, and build the iOS simulator target. Those jobs prove packaging/build compatibility; real playback remains a separate acceptance gate.
+Pull requests additionally compile the Tauri host on Windows, macOS, and Linux. Android/iOS packaging and device acceptance are local-only until the hosted mobile jobs are deliberately restored.

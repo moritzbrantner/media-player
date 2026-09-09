@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+# Android and iOS hosted package jobs are intentionally paused for now.
+# Keep the local Tauri build/acceptance commands available; mobile evidence is
+# gathered explicitly on a developer machine until these jobs are restored.
 jobs:
   desktop:
     name: Desktop / ${{ matrix.platform }}
@@ -32,74 +35,3 @@ jobs:
         run: npm install --ignore-scripts
       - name: Build desktop host
         run: npm run tauri:build
-
-  android:
-    name: Android / APK + AAB
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22.16.0
-          package-manager-cache: false
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Install Tauri CLI
-        run: npm install --ignore-scripts
-      - name: Resolve Android NDK
-        shell: bash
-        run: |
-          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
-          NDK_DIR="$(find "$SDK_ROOT/ndk" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
-          test -n "$NDK_DIR"
-          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
-          echo "NDK_HOME=$NDK_DIR" >> "$GITHUB_ENV"
-      - name: Initialize Android project
-        run: npm run tauri:android:init -- --ci
-      - name: Build aarch64 debug APK
-        run: npm run tauri:android:build -- --debug --target aarch64 --apk
-      - name: Build debug Android App Bundle
-        run: npm run tauri:android:build -- --debug --aab
-      - name: Upload Android debug APK
-        uses: actions/upload-artifact@v7
-        with:
-          name: media-player-android-debug-apk
-          path: src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk
-          if-no-files-found: error
-          retention-days: 14
-      - name: Upload Android debug AAB
-        uses: actions/upload-artifact@v7
-        with:
-          name: media-player-android-debug-aab
-          path: src-tauri/gen/android/app/build/outputs/bundle/universalDebug/app-universal-debug.aab
-          if-no-files-found: error
-          retention-days: 14
-
-  ios:
-    name: iOS / Apple Silicon simulator
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22.16.0
-          package-manager-cache: false
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Install Tauri CLI
-        run: npm install --ignore-scripts
-      - name: Initialize iOS project
-        run: npm run tauri:ios:init -- --ci
-      - name: Build iOS simulator app
-        run: npm run tauri:ios:build -- --debug --target aarch64-sim --no-sign
-      - name: Archive iOS simulator app
-        run: tar -czf media-player-ios-arm64-simulator.tar.gz -C src-tauri/gen/apple/build/arm64-sim "Media Player.app"
-      - name: Upload iOS simulator app
-        uses: actions/upload-artifact@v7
-        with:
-          name: media-player-ios-arm64-simulator
-          path: media-player-ios-arm64-simulator.tar.gz
-          if-no-files-found: error
-          retention-days: 14
