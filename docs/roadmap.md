@@ -57,7 +57,7 @@ The installed-app Library is a progressive enhancement over the hosted player: i
 - Detect missing/corrupt entries without damaging the rest of the library.
 - Add deterministic migration tests for future library-index versions.
 
-Startup recovery now removes orphaned `.part` imports and resolves the index transaction file conservatively: a valid pending index is promoted only when no committed index exists, while an invalid or unsupported pending index is preserved for diagnosis. Track paths are constrained to the app-private `media/` directory.
+Each import now owns a per-session OS file lock. Startup recovery reaps only transaction files whose lock can be acquired, so another live app instance's import is left untouched; unproven legacy `.part` files are also preserved rather than guessed stale. The index transaction is recovered conservatively: a valid pending index is promoted only when no committed index exists, while an invalid or unsupported pending index is preserved for diagnosis and blocks library reads/new imports until it is resolved. Track paths are constrained to the app-private `media/` directory.
 
 Integrity inspection is explicit rather than automatic because hashing an entire library can be expensive. It checks stable IDs, path safety, file presence, size, and SHA-256 content identity, then returns a detailed report without mutating the index or media files. The installed Library surface exposes this as **Check integrity**.
 
