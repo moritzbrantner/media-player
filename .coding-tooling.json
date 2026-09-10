@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "profile": "repository-foundation-v1",
+  "tiers": {
+    "fast": ["build", "test:unit"]
+  },
+  "requiredCapabilities": ["build", "test:unit"],
+  "capabilityCommands": {
+    ".": {
+      "build": ["npm", "run", "build:web"]
+    }
+  }
+}
