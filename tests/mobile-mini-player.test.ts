@@ -3,7 +3,7 @@ import test from "node:test";
 import {
   mobileControlSnapshot,
   shouldShowMobileMiniPlayer,
-} from "../web/mobile-mini-player.js";
+} from "../web/mobile-mini-player.ts";
 
 test("mobile control mirrors existing transport authority", () => {
   const source = {

@@ -3,8 +3,8 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const html = await readFile(new URL("../web/index.html", import.meta.url), "utf8");
-const app = await readFile(new URL("../web/app.js", import.meta.url), "utf8");
-const blueNoise = await readFile(new URL("../web/blue-noise.js", import.meta.url), "utf8");
+const app = await readFile(new URL("../web/app.ts", import.meta.url), "utf8");
+const blueNoise = await readFile(new URL("../web/blue-noise.ts", import.meta.url), "utf8");
 const styles = await readFile(new URL("../web/dj.css", import.meta.url), "utf8");
 
 test("player exposes blue-noise shuffle, Auto DJ, and policy settings", () => {

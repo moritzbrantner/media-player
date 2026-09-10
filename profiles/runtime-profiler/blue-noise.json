@@ -4,7 +4,7 @@
   "target": {
     "type": "command",
     "program": "node",
-    "args": ["scripts/profile-blue-noise.mjs"],
+    "args": ["--experimental-strip-types", "scripts/profile-blue-noise.ts"],
     "working_directory": "../.."
   },
   "run": {

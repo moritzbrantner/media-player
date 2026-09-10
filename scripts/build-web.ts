@@ -8,6 +8,11 @@ const output = path.join(root, "dist");
 
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
-await cp(source, output, { recursive: true });
+await cp(source, output, {
+  recursive: true,
+  filter(sourcePath) {
+    return !sourcePath.endsWith(".ts");
+  },
+});
 
-console.log(`Built static web app at ${output}`);
+console.log(`Prepared static web assets at ${output}`);

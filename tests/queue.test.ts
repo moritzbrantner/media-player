@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { moveItem, nextIndex, previousIndex, removeItem } from "../web/queue.js";
+import { moveItem, nextIndex, previousIndex, removeItem } from "../web/queue.ts";
 
 test("queue navigation stops cleanly at either end", () => {
   assert.equal(nextIndex(0, -1), -1);

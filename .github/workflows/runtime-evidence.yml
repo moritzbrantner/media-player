@@ -41,6 +41,15 @@ jobs:
           ref: ${{ env.MOONLIGHT_REV }}
           path: moonlight
 
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22.16.0
+          package-manager-cache: false
+
+      - name: Install candidate web toolchain
+        working-directory: candidate
+        run: npm install --ignore-scripts --no-package-lock
+
       - name: Install Rust tools
         run: |
           rustup toolchain install stable --profile minimal
@@ -52,8 +61,8 @@ jobs:
 
       - name: Prime deterministic workload
         run: |
-          (cd reference && node scripts/profile-blue-noise.mjs >/dev/null)
-          (cd candidate && node scripts/profile-blue-noise.mjs >/dev/null)
+          (cd reference && node --experimental-strip-types scripts/profile-blue-noise.ts >/dev/null)
+          (cd candidate && node --experimental-strip-types scripts/profile-blue-noise.ts >/dev/null)
           test -z "$(git -C reference status --porcelain)"
           test -z "$(git -C candidate status --porcelain)"
 

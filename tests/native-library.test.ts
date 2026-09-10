@@ -5,7 +5,7 @@ import {
   createNativeLibraryApi,
   filterLibraryTracks,
   queueItemFromLibraryTrack,
-} from "../web/native-library.js";
+} from "../web/native-library.ts";
 
 function mockTauri() {
   const calls = [];
@@ -148,7 +148,7 @@ test("library filtering is deterministic and locale-stable", () => {
 
 test("installed library exposes integrity inspection without automatic mutation", async () => {
   const html = await readFile(new URL("../web/index.html", import.meta.url), "utf8");
-  const ui = await readFile(new URL("../web/native-library-ui.js", import.meta.url), "utf8");
+  const ui = await readFile(new URL("../web/native-library-ui.ts", import.meta.url), "utf8");
 
   assert.match(html, /id="library-integrity-button"/);
   assert.match(html, /id="library-integrity-list"/);
