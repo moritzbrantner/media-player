@@ -13,7 +13,9 @@ const section = document.querySelector("#native-library-section");
 if (api && section) {
   const importInput = document.querySelector("#library-import-input");
   const refreshButton = document.querySelector("#library-refresh-button");
+  const integrityButton = document.querySelector("#library-integrity-button");
   const status = document.querySelector("#library-status");
+  const integrityList = document.querySelector("#library-integrity-list");
   const list = document.querySelector("#library-list");
   const filterInput = document.createElement("input");
   let tracks = [];
@@ -30,6 +32,53 @@ if (api && section) {
   function setStatus(message, state = "idle") {
     status.textContent = message;
     status.dataset.state = state;
+  }
+
+  function clearIntegrityReport() {
+    integrityList.replaceChildren();
+    integrityList.hidden = true;
+  }
+
+  function integrityKindLabel(kind) {
+    return {
+      "invalid-id": "Invalid identity",
+      "unsafe-path": "Unsafe path",
+      "missing-file": "Missing file",
+      "unreadable-file": "Unreadable file",
+      "size-mismatch": "Size mismatch",
+      "content-mismatch": "Content mismatch",
+    }[kind] || "Integrity issue";
+  }
+
+  function renderIntegrityReport(report) {
+    clearIntegrityReport();
+    const issues = Array.isArray(report?.issues) ? report.issues : [];
+    const checkedTracks = Number(report?.checkedTracks) || 0;
+    const healthyTracks = Number(report?.healthyTracks) || 0;
+
+    if (issues.length === 0) {
+      setStatus(
+        `Library integrity passed: ${healthyTracks}/${checkedTracks} track${checkedTracks === 1 ? "" : "s"} healthy.`,
+        "success",
+      );
+      return;
+    }
+
+    for (const issue of issues) {
+      const row = document.createElement("li");
+      row.className = "library-integrity-item";
+      const name = document.createElement("strong");
+      name.textContent = issue?.name || issue?.id || "Imported track";
+      const detail = document.createElement("span");
+      detail.textContent = `${integrityKindLabel(issue?.kind)} · ${issue?.detail || "Review this imported entry."}`;
+      row.append(name, detail);
+      integrityList.append(row);
+    }
+    integrityList.hidden = false;
+    setStatus(
+      `Library integrity found ${issues.length} issue${issues.length === 1 ? "" : "s"}; no library entries were changed.`,
+      "error",
+    );
   }
 
   function actionButton(label, handler, className = "text-button") {
@@ -128,6 +177,7 @@ if (api && section) {
     refreshButton.disabled = true;
     try {
       tracks = await api.listTracks();
+      clearIntegrityReport();
       renderTracks();
       setStatus(
         tracks.length === 0
@@ -137,6 +187,7 @@ if (api && section) {
     } catch (error) {
       tracks = [];
       list.replaceChildren();
+      clearIntegrityReport();
       setStatus(`Could not read the native library: ${error?.message || error}`, "error");
     } finally {
       refreshButton.disabled = false;
@@ -168,6 +219,21 @@ if (api && section) {
         await refreshLibrary();
       } catch (error) {
         setStatus(`Import failed: ${error?.message || error}`, "error");
+      }
+    })();
+  });
+
+  integrityButton.addEventListener("click", () => {
+    void (async () => {
+      integrityButton.disabled = true;
+      setStatus("Checking library integrity…", "busy");
+      try {
+        renderIntegrityReport(await api.inspectIntegrity());
+      } catch (error) {
+        clearIntegrityReport();
+        setStatus(`Could not inspect library integrity: ${error?.message || error}`, "error");
+      } finally {
+        integrityButton.disabled = false;
       }
     })();
   });

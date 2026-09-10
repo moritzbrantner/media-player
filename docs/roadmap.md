@@ -48,14 +48,20 @@ The native persistence foundation is integrated through bounded chunked imports,
 - Keep metadata/artwork compatible with the existing queue model.
 - Add search/filter once the persistent library is established.
 
-The installed-app Library is a progressive enhancement over the hosted player: it imports explicitly selected files through the Rust-owned storage contract, resolves persisted media through a narrowly scoped app-private asset path, and feeds stable library identities into the existing visible queue without creating a second playback authority. Filtering remains local to the loaded library index. The next implementation slice is Slice 1C integrity and migration hardening.
+The installed-app Library is a progressive enhancement over the hosted player: it imports explicitly selected files through the Rust-owned storage contract, resolves persisted media through a narrowly scoped app-private asset path, and feeds stable library identities into the existing visible queue without creating a second playback authority. Filtering remains local to the loaded library index.
 
-### Slice 1C — Scale and integrity
+### Slice 1C — Scale and integrity — implemented
 
 - Add bounded/chunked import so large files are not copied through one unbounded IPC payload. *(Implemented in Slice 1A.)*
 - Recover safely from interrupted imports and stale temporary files.
 - Detect missing/corrupt entries without damaging the rest of the library.
 - Add deterministic migration tests for future library-index versions.
+
+Each import now owns a per-session OS file lock. Startup recovery reaps only transaction files whose lock can be acquired, so another live app instance's import is left untouched; unproven legacy `.part` files are also preserved rather than guessed stale. The index transaction is recovered conservatively: a valid pending index is promoted only when no committed index exists, while an invalid or unsupported pending index is preserved for diagnosis and blocks library reads/new imports until it is resolved. Track paths are constrained to the app-private `media/` directory.
+
+Integrity inspection is explicit rather than automatic because hashing an entire library can be expensive. It checks stable IDs, path safety, file presence, size, and SHA-256 content identity, then returns a detailed report without mutating the index or media files. The installed Library surface exposes this as **Check integrity**.
+
+Index decoding now passes through a version-dispatch/migration seam. Version 1 remains the only supported schema; deterministic tests prove current-version identity and future-version fail-closed behavior without overwriting evidence.
 
 ## Priority 2 — Background and lock-screen playback
 

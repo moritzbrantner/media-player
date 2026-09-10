@@ -19,6 +19,7 @@
 .library-copy,
 .library-status,
 .library-item-copy span,
+.library-integrity-item span,
 .library-empty {
   color: var(--muted);
 }
@@ -61,12 +62,35 @@
   outline-offset: 2px;
 }
 
-.library-list {
+.library-list,
+.library-integrity-list {
   display: grid;
   gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.library-integrity-list {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.library-integrity-item {
+  display: grid;
+  gap: 4px;
+}
+
+.library-integrity-item + .library-integrity-item {
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.library-integrity-item span {
+  overflow-wrap: anywhere;
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 
 .library-item {

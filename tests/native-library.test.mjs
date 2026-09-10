@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   createNativeLibraryApi,
@@ -21,6 +22,20 @@ function mockTauri() {
           mimeType: "audio/mpeg",
           size: 7,
           relativePath: `media/${"a".repeat(64)}.mp3`,
+        };
+      }
+      if (command === "inspect_library_integrity") {
+        return {
+          checkedTracks: 2,
+          healthyTracks: 1,
+          issues: [
+            {
+              id: "b".repeat(64),
+              name: "missing.flac",
+              kind: "missing-file",
+              detail: "media library track file is missing",
+            },
+          ],
         };
       }
       if (command === "resolve_library_track") return "/app/media/song.mp3";
@@ -86,6 +101,19 @@ test("native import aborts its session when a chunk fails", async () => {
   assert.equal(calls.at(-1).args.sessionId, "failed");
 });
 
+test("integrity inspection is an explicit non-mutating native bridge", async () => {
+  const { tauri, calls } = mockTauri();
+  const api = createNativeLibraryApi(tauri);
+
+  const report = await api.inspectIntegrity();
+
+  assert.equal(report.checkedTracks, 2);
+  assert.equal(report.healthyTracks, 1);
+  assert.equal(report.issues[0].kind, "missing-file");
+  assert.equal(calls.at(-1).command, "inspect_library_integrity");
+  assert.deepEqual(calls.at(-1).args, {});
+});
+
 test("persisted track produces stable queue identity and asset source", async () => {
   const { tauri } = mockTauri();
   const api = createNativeLibraryApi(tauri);
@@ -116,4 +144,14 @@ test("library filtering is deterministic and locale-stable", () => {
   assert.deepEqual(filterLibraryTracks(tracks, "OPUS"), [tracks[2]]);
   assert.deepEqual(filterLibraryTracks(tracks, "  "), tracks);
   assert.deepEqual(filterLibraryTracks(tracks, "missing"), []);
+});
+
+test("installed library exposes integrity inspection without automatic mutation", async () => {
+  const html = await readFile(new URL("../web/index.html", import.meta.url), "utf8");
+  const ui = await readFile(new URL("../web/native-library-ui.js", import.meta.url), "utf8");
+
+  assert.match(html, /id="library-integrity-button"/);
+  assert.match(html, /id="library-integrity-list"/);
+  assert.match(ui, /api\.inspectIntegrity\(\)/);
+  assert.match(ui, /no library entries were changed/);
 });
