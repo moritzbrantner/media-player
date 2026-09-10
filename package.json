@@ -5,10 +5,11 @@
   "type": "module",
   "packageManager": "npm@10.9.2",
   "scripts": {
-    "dev:web": "node scripts/serve.mjs",
-    "build:web": "node scripts/build-web.mjs",
-    "test": "node --test tests/*.test.mjs",
-    "verify:web": "npm run test && npm run build:web && node --check web/app.js && node --check web/acceptance.js && node --check web/blue-noise.js && node --check web/metadata.js && node --check web/mobile-mini-player.js && node --check web/mobile-navigation.js && node --check web/native-library.js && node --check web/native-library-ui.js && node --check web/playback-acceptance.js && node --check web/player.js && node --check web/queue.js",
+    "dev:web": "npm run build:web && node --experimental-strip-types scripts/serve.ts",
+    "build:web": "node --experimental-strip-types scripts/build-web.ts && tsc -p tsconfig.web.json --noCheck",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "check:source-language": "node --experimental-strip-types scripts/check-source-language.ts",
+    "verify:web": "npm run check:source-language && npm run test && npm run build:web",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build --no-bundle",
@@ -20,6 +21,7 @@
     "tauri:ios:build": "tauri ios build"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "2.11.4"
+    "@tauri-apps/cli": "2.11.4",
+    "typescript": "7.0.2"
   }
 }

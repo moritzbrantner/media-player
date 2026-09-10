@@ -16,7 +16,7 @@ function createCheckout(root, name) {
   const checkout = join(root, name);
   mkdirSync(join(checkout, "scripts"), { recursive: true });
   mkdirSync(join(checkout, "profiles/runtime-profiler"), { recursive: true });
-  cpSync(join(repositoryRoot, "scripts/profile-blue-noise.mjs"), join(checkout, "scripts/profile-blue-noise.mjs"));
+  cpSync(join(repositoryRoot, "scripts/profile-blue-noise.ts"), join(checkout, "scripts/profile-blue-noise.ts"));
   cpSync(
     join(repositoryRoot, "profiles/runtime-profiler/blue-noise.json"),
     join(checkout, "profiles/runtime-profiler/blue-noise.json"),

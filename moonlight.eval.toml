@@ -13,7 +13,7 @@ max_body_capture_bytes = 20000
 [[checks]]
 id = "blue-noise-tests"
 name = "Blue-noise tests"
-command = "node --test tests/blue-noise.test.mjs"
+command = "sh -c 'if [ -f tests/blue-noise.test.ts ]; then node --experimental-strip-types --test tests/blue-noise.test.ts; else node --test tests/blue-noise.test.mjs; fi'"
 cwd = "."
 timeout_ms = 120000
 ignore_stdout = true
@@ -22,7 +22,7 @@ ignore_stderr = true
 [[checks]]
 id = "web-tests"
 name = "Web tests"
-command = "node --test tests/*.test.mjs"
+command = "sh -c 'if ls tests/*.test.ts >/dev/null 2>&1; then node --experimental-strip-types --test tests/*.test.ts; else node --test tests/*.test.mjs; fi'"
 cwd = "."
 timeout_ms = 300000
 ignore_stdout = true
@@ -31,7 +31,7 @@ ignore_stderr = true
 [[checks]]
 id = "web-build"
 name = "Static web build"
-command = "node scripts/build-web.mjs"
+command = "sh -c 'if [ -f scripts/build-web.ts ]; then npm run build:web; else node scripts/build-web.mjs; fi'"
 cwd = "."
 timeout_ms = 300000
 ignore_stdout = true
@@ -39,8 +39,8 @@ ignore_stderr = true
 
 [[checks]]
 id = "web-syntax"
-name = "Web syntax checks"
-command = "node --check web/app.js && node --check web/blue-noise.js && node --check web/player.js && node --check web/queue.js"
+name = "Web source syntax checks"
+command = "sh -c 'if [ -f web/app.ts ]; then node --experimental-strip-types --check web/app.ts && node --experimental-strip-types --check web/blue-noise.ts && node --experimental-strip-types --check web/player.ts && node --experimental-strip-types --check web/queue.ts; else node --check web/app.js && node --check web/blue-noise.js && node --check web/player.js && node --check web/queue.js; fi'"
 cwd = "."
 timeout_ms = 120000
 ignore_stdout = true

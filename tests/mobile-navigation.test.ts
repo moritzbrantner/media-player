@@ -7,12 +7,12 @@ import {
   mobileViewSearch,
   mobileViewUrl,
   resolveMobileView,
-} from "../web/mobile-navigation.js";
+} from "../web/mobile-navigation.ts";
 
 const html = await readFile(new URL("../web/index.html", import.meta.url), "utf8");
 const mobileStyles = await readFile(new URL("../web/mobile.css", import.meta.url), "utf8");
-const miniPlayer = await readFile(new URL("../web/mobile-mini-player.js", import.meta.url), "utf8");
-const navigation = await readFile(new URL("../web/mobile-navigation.js", import.meta.url), "utf8");
+const miniPlayer = await readFile(new URL("../web/mobile-mini-player.ts", import.meta.url), "utf8");
+const navigation = await readFile(new URL("../web/mobile-navigation.ts", import.meta.url), "utf8");
 
 test("mobile views are URL-addressable without discarding other query state", () => {
   assert.deepEqual(MOBILE_VIEWS, ["library", "now-playing", "queue"]);

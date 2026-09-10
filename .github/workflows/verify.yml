@@ -18,6 +18,7 @@ jobs:
         with:
           node-version: 22.16.0
           package-manager-cache: false
+      - run: npm install --ignore-scripts --no-package-lock
       - run: npm run verify:web
 
   rust:

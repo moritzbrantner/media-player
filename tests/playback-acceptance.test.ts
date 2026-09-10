@@ -8,7 +8,7 @@ import {
   acceptanceTargetUrl,
   seekTarget,
   summarizeAcceptance,
-} from "../web/playback-acceptance.js";
+} from "../web/playback-acceptance.ts";
 
 test("acceptance target is URL-addressable and defaults safely", () => {
   assert.deepEqual(ACCEPTANCE_TARGETS, ["browser", "desktop", "android", "ios"]);
@@ -51,7 +51,7 @@ test("seek target stays inside the decoded track", () => {
 
 test("acceptance surface exercises real media-element behavior locally", async () => {
   const html = await readFile(new URL("../web/acceptance.html", import.meta.url), "utf8");
-  const app = await readFile(new URL("../web/acceptance.js", import.meta.url), "utf8");
+  const app = await readFile(new URL("../web/acceptance.ts", import.meta.url), "utf8");
 
   assert.match(html, /id="acceptance-file"/);
   assert.match(html, /accept="\.mp3,audio\/mpeg,audio\/mp3"/);

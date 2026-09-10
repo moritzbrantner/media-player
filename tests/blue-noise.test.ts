@@ -5,7 +5,7 @@ import {
   blueNoiseOrder,
   blueNoiseReorderUpcoming,
   normalizeBlueNoiseSettings,
-} from "../web/blue-noise.js";
+} from "../web/blue-noise.ts";
 
 function track(id, artist, album = "") {
   return {

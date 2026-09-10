@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import http from "node:http";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../web");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../dist");
 const port = Number(process.env.PORT ?? 1420);
 const host = process.env.TAURI_DEV_HOST ?? "127.0.0.1";
 
@@ -13,7 +13,7 @@ const contentTypes = new Map([
   [".html", "text/html; charset=utf-8"],
   [".js", "text/javascript; charset=utf-8"],
   [".json", "application/json; charset=utf-8"],
-  [".svg", "image/svg+xml"]
+  [".svg", "image/svg+xml"],
 ]);
 
 const server = http.createServer(async (request, response) => {
@@ -32,7 +32,7 @@ const server = http.createServer(async (request, response) => {
 
     response.writeHead(200, {
       "Content-Type": contentTypes.get(path.extname(candidate)) ?? "application/octet-stream",
-      "Cache-Control": "no-store"
+      "Cache-Control": "no-store",
     });
     createReadStream(candidate).pipe(response);
   } catch {

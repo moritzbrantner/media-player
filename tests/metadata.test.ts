@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { parseId3Metadata } from "../web/metadata.js";
+import { parseId3Metadata } from "../web/metadata.ts";
 
 function synchsafe(value) {
   return Uint8Array.from([

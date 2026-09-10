@@ -1,4 +1,10 @@
-import { blueNoiseOrder } from "../web/blue-noise.js";
+import { existsSync } from "node:fs";
+
+const typescriptModule = new URL("../web/blue-noise.ts", import.meta.url);
+const sourceModule = existsSync(typescriptModule)
+  ? typescriptModule
+  : new URL("../web/blue-noise.js", import.meta.url);
+const { blueNoiseOrder } = await import(sourceModule.href);
 
 const TRACK_COUNT = 1_200;
 const ROUNDS = 3;

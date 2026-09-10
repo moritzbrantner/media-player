@@ -11,7 +11,7 @@ import {
   formatTime,
   isMp3File,
   isSupportedAudioFile,
-} from "../web/player.js";
+} from "../web/player.ts";
 
 test("audio accept list covers the supported format families", () => {
   for (const token of [
