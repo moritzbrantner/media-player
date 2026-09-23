@@ -317,3 +317,142 @@ test("Next and ended consume the visible queue without reranking", () => {
   assert.deepEqual(h.titles(), titles);
   assert.equal(h.rankingCalls, rankingCalls);
 });
+
+// Issue 1: no-op ranking must not skip rendering, including native queue events.
+test("native-track removal renders the final active row and then clears the queue", () => {
+  const h = harness();
+  for (const id of ["native-one", "native-two"]) {
+    h.window.emit("media-player:add-native-track", { detail: { item: {
+      id, libraryTrackId: id, sourceUrl: `asset:${id}`,
+      file: { name: `${id}.wav`, size: 100, type: "audio/wav" },
+    } } });
+  }
+  h.autoDj(true);
+  const rankingCalls = h.rankingCalls;
+  h.window.emit("media-player:remove-native-track", { detail: { trackId: "native-two" } });
+  assert.deepEqual(h.titles(), ["native-one.wav"]);
+  assert.equal(h.node("next-button").disabled, true);
+  assert.equal(h.rankingCalls, rankingCalls);
+  h.window.emit("media-player:remove-native-track", { detail: { trackId: "native-one" } });
+  assert.equal(h.rows().length, 0);
+  assert.equal(h.node("player").hidden, true);
+  assert.equal(h.node("play-button").disabled, true);
+  assert.equal(h.audio.src, "");
+});
+
+test("removing the active track preserves a playing replacement and its identity", async () => {
+  const h = harness();
+  h.add(["first.wav", "second.wav"]);
+  h.click("play-button");
+  h.plays[0].resolve();
+  await flush();
+  h.autoDj(true);
+  h.remove(0);
+  assert.deepEqual(h.titles(), ["second.wav"]);
+  assert.equal(h.rows()[0].dataset.active, "true");
+  assert.equal(h.node("next-button").disabled, true);
+  assert.equal(h.plays.length, 2);
+  h.plays[1].resolve();
+  await flush();
+  assert.equal(h.audio.paused, false);
+});
+
+// Issue 2: batches may contain failures or a mix of live and retired identities.
+test("a mixed metadata batch reranks once for surviving tracks without reviving removed items", async () => {
+  const h = harness({ "media-player.auto-dj": "true" });
+  h.add(["a.mp3", "b.mp3", "c.mp3", "d.mp3"]);
+  const removedName = h.titles()[2];
+  h.remove(2);
+  const rankingCalls = h.rankingCalls;
+  const source = h.audio.src;
+  for (const pending of h.metadata) {
+    if (pending.file.name === removedName) pending.reject(new Error("File no longer readable"));
+    else pending.resolve({ title: pending.file.name, artist: "Artist" });
+  }
+  await flush();
+  assert.equal(h.rows().length, 3);
+  assert.equal(h.titles().includes(removedName), false);
+  assert.equal(h.rankingCalls, rankingCalls + 1);
+  assert.equal(h.audio.src, source);
+});
+
+test("failed metadata reads after disabling Auto-DJ cannot rerank the queue", async () => {
+  const h = harness({ "media-player.auto-dj": "true" });
+  h.add(["a.mp3", "b.mp3", "c.mp3"]);
+  h.autoDj(false);
+  const titles = h.titles();
+  const rankingCalls = h.rankingCalls;
+  for (const pending of h.metadata) pending.reject(new Error("Unreadable metadata"));
+  await flush();
+  assert.deepEqual(h.titles(), titles);
+  assert.equal(h.rankingCalls, rankingCalls);
+  assert.equal(h.node("error-message").textContent, "");
+});
+
+// Issue 3: all source-changing routes must retain the user's selected rate.
+test("selected speed survives Previous, ended, and active-track replacement", async () => {
+  const h = harness();
+  h.add(["one.wav", "two.wav", "three.wav"]);
+  h.node("playback-rate").value = "1.25";
+  h.node("playback-rate").emit("change");
+  for (const advance of [
+    () => h.click("next-button"),
+    () => h.click("previous-button"),
+    () => h.audio.emit("ended"),
+    () => h.remove(1),
+  ]) {
+    advance();
+    h.plays.at(-1)?.resolve();
+    await flush();
+    assert.equal(h.audio.playbackRate, 1.25);
+    assert.equal(h.audio.defaultPlaybackRate, 1.25);
+    assert.equal(h.node("playback-rate").value, "1.25");
+  }
+  assert.equal(h.node("track-title").textContent, "three.wav");
+});
+
+test("unsupported saved speed falls back safely and remains stable after loading", async () => {
+  const h = harness({ "media-player.playback-rate": "500" });
+  h.add(["one.wav"]);
+  await flush();
+  assert.equal(h.audio.playbackRate, 1);
+  assert.equal(h.audio.defaultPlaybackRate, 1);
+  assert.equal(h.node("playback-rate").value, "1");
+});
+
+// Issue 4: request generations must work on the same source and every pause path.
+test("a superseded request on the same track cannot overwrite the newest success", async () => {
+  const h = harness();
+  h.add(["one.wav"]);
+  h.actions.get("play")();
+  h.actions.get("play")();
+  h.plays[1].resolve();
+  await flush();
+  h.plays[0].reject(denied());
+  await flush();
+  assert.equal(h.node("error-message").textContent, "");
+});
+
+test("Media Session pause fences late non-AbortError rejections", async () => {
+  const h = harness();
+  h.add(["one.wav"]);
+  h.actions.get("play")();
+  h.actions.get("pause")();
+  h.plays[0].reject(denied());
+  await flush();
+  assert.equal(h.audio.paused, true);
+  assert.equal(h.node("error-message").textContent, "");
+});
+
+test("active removal fences a previous success from erasing the replacement failure", async () => {
+  const h = harness();
+  h.add(["first.wav", "replacement.wav"]);
+  h.click("play-button");
+  h.remove(0);
+  h.plays[1].reject(denied());
+  await flush();
+  h.plays[0].resolve();
+  await flush();
+  assert.match(h.node("error-message").textContent, /Playback could not start/);
+  assert.equal(h.node("track-title").textContent, "replacement.wav");
+});
