@@ -65,6 +65,7 @@ let currentIndex = -1;
 let audioObjectUrl = null;
 let coverObjectUrl = null;
 let autoDjSessionSeed = "";
+let playbackRequest = 0;
 
 function makeId() {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
@@ -238,8 +239,8 @@ function configureMediaActions() {
   if (!("mediaSession" in navigator)) return;
 
   const actions = {
-    play: () => void audio.play(),
-    pause: () => audio.pause(),
+    play: () => void startPlayback(),
+    pause: pausePlayback,
     previoustrack: () => void goPrevious(),
     nexttrack: () => void goNext(),
     seekbackward: (details) => seekBy(-(details.seekOffset || 10)),
@@ -284,8 +285,10 @@ function currentBlueNoiseSettings({ freshSeed = false } = {}) {
 }
 
 function rebalanceUpcomingQueue({ freshSeed = false } = {}) {
-  if (queue.length <= Math.max(1, currentIndex + 1)) return;
-  queue = blueNoiseReorderUpcoming(queue, currentIndex, currentBlueNoiseSettings({ freshSeed }));
+  if (queue.length > Math.max(1, currentIndex + 1)) {
+    queue = blueNoiseReorderUpcoming(queue, currentIndex, currentBlueNoiseSettings({ freshSeed }));
+  }
+  // Queue mutations still need rendering when there is nothing left to rank.
   renderQueue();
 }
 
@@ -318,6 +321,7 @@ async function hydrateMetadata(itemId) {
   if (index < 0) return;
   renderQueue();
   if (index === currentIndex) renderCurrentTrack();
+  return itemId;
 }
 
 function addFiles(files) {
@@ -354,8 +358,13 @@ function addFiles(files) {
     if (item.metadataStatus === "loading") metadataTasks.push(hydrateMetadata(item.id));
   }
 
-  if (autoDjToggle.checked && metadataTasks.length > 0) {
-    void Promise.all(metadataTasks).then(() => rebalanceUpcomingQueue());
+  if (metadataTasks.length > 0) {
+    void Promise.all(metadataTasks).then((itemIds) => {
+      // Consult current policy and membership, not the state when reads started.
+      if (!autoDjToggle.checked) return;
+      const hydratedIds = new Set(itemIds);
+      if (queue.some((item) => hydratedIds.has(item.id))) rebalanceUpcomingQueue();
+    });
   }
 }
 
@@ -363,11 +372,13 @@ async function loadTrack(index, { autoplay = false } = {}) {
   const item = queue[index];
   if (!item) return;
 
-  audio.pause();
+  pausePlayback();
   if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl);
   audioObjectUrl = item.sourceUrl ? null : URL.createObjectURL(item.file);
 
   currentIndex = index;
+  // load() restores playbackRate from defaultPlaybackRate, including on Next.
+  audio.defaultPlaybackRate = Number(playbackRate.value);
   audio.src = item.sourceUrl || audioObjectUrl;
   audio.volume = Number(volume.value);
   audio.playbackRate = Number(playbackRate.value);
@@ -377,29 +388,31 @@ async function loadTrack(index, { autoplay = false } = {}) {
   renderCurrentTrack();
   renderQueue();
 
-  if (autoplay) {
-    try {
-      await audio.play();
-      setError();
-    } catch {
-      setError("Playback could not start on this device.");
-    }
+  if (autoplay) await startPlayback();
+}
+
+function pausePlayback() {
+  // Invalidate before pause/load can settle an older play() promise.
+  playbackRequest += 1;
+  audio.pause();
+}
+
+async function startPlayback() {
+  if (!queue[currentIndex] || !audio.src) return;
+  const request = ++playbackRequest;
+  try {
+    await audio.play();
+    if (request === playbackRequest) setError();
+  } catch (error) {
+    if (request !== playbackRequest || error?.name === "AbortError") return;
+    setError("Playback could not start on this device.");
   }
 }
 
 async function togglePlayback() {
   if (!audio.src) return;
-
-  if (audio.paused) {
-    try {
-      await audio.play();
-      setError();
-    } catch {
-      setError("Playback could not start on this device.");
-    }
-  } else {
-    audio.pause();
-  }
+  if (audio.paused) await startPlayback();
+  else pausePlayback();
 }
 
 function seekBy(seconds) {
@@ -435,7 +448,7 @@ function removeQueueItem(index) {
 
   if (queue.length === 0) {
     currentIndex = -1;
-    audio.pause();
+    pausePlayback();
     audio.removeAttribute("src");
     audio.load();
     revokeActiveUrls();
@@ -550,6 +563,7 @@ volume.addEventListener("input", () => {
 
 playbackRate.addEventListener("change", () => {
   const requestedRate = clamp(Number(playbackRate.value), 0.5, 2);
+  audio.defaultPlaybackRate = requestedRate;
   audio.playbackRate = requestedRate;
   writeSetting(STORAGE_RATE, requestedRate);
 });
@@ -557,7 +571,7 @@ playbackRate.addEventListener("change", () => {
 clearQueueButton.addEventListener("click", () => {
   queue = [];
   currentIndex = -1;
-  audio.pause();
+  pausePlayback();
   audio.removeAttribute("src");
   audio.load();
   revokeActiveUrls();
@@ -646,6 +660,7 @@ const initialBlueNoise = normalizeBlueNoiseSettings({
 volume.value = String(initialVolume);
 audio.volume = initialVolume;
 playbackRate.value = String(initialRate);
+audio.defaultPlaybackRate = initialRate;
 audio.playbackRate = initialRate;
 autoDjToggle.checked = readBooleanSetting(STORAGE_AUTO_DJ, false);
 blueNoiseSpacing.value = String(initialBlueNoise.spacing);
