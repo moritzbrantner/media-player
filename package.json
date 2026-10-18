@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "packageManager": "npm@10.9.2",
+  "packageManager": "npm@10.9.9",
   "scripts": {
     "dev:web": "npm run build:web && node --experimental-strip-types scripts/serve.ts",
     "build:web": "node --experimental-strip-types scripts/build-web.ts && tsc -p tsconfig.web.json --noCheck",
@@ -21,7 +21,7 @@
     "tauri:ios:build": "tauri ios build"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "2.11.4",
+    "@tauri-apps/cli": "2.12.3",
     "typescript": "7.0.2"
   }
 }
