@@ -53,7 +53,7 @@ jobs:
       contents: read
 
   merge-ready:
-    name: merge-ready
+    name: ${{ github.event_name == 'pull_request' && 'merge-ready' || 'validation-summary' }}
     if: ${{ always() }}
     needs: ["web", "rust", "native-validation", "runtime-validation"]
     runs-on: ubuntu-latest
