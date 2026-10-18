@@ -37,3 +37,31 @@ jobs:
         run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
       - name: Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
+
+  native-validation:
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/native.yml
+    secrets: inherit
+    permissions:
+      contents: read
+
+  runtime-validation:
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    uses: ./.github/workflows/runtime-evidence.yml
+    secrets: inherit
+    permissions:
+      contents: read
+
+  merge-ready:
+    name: merge-ready
+    if: ${{ always() }}
+    needs: ["web", "rust", "native-validation", "runtime-validation"]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: moritzbrantner/reusable-workflows/.github/actions/merge-ready@b0f25f241d76af2584dfc9e375084ff5c5cb97da
+        with:
+          needs: ${{ toJSON(needs) }}
+          required: '["web", "rust", "native-validation", "runtime-validation"]'
+          allow-skipped: ${{ github.event_name != 'pull_request' && '["native-validation", "runtime-validation"]' || (github.base_ref != 'main' && '["runtime-validation"]' || '[]') }}
